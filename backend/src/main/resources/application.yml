@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: portfolioiq
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/portfolioiq}
+    username: ${DB_USER:portfolioiq}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate        # schema is owned by Flyway, never by Hibernate
+    open-in-view: false
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+  market:
+    api-key: ${MARKET_DATA_API_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
