@@ -22,4 +22,20 @@ public class AuthController {
 
     @GetMapping("/me")
     public MeResponse me(Authentication auth) { return service.me(auth.getName()); }
+
+    @PostMapping("/verify-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void verifyEmail(@Valid @RequestBody TokenRequest req) { service.verifyEmail(req.token()); }
+
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resend(Authentication auth) { service.resendVerification(auth.getName()); }
+
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgot(@Valid @RequestBody ForgotPasswordRequest req) { service.forgotPassword(req.email()); }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reset(@Valid @RequestBody ResetPasswordRequest req) { service.resetPassword(req); }
 }

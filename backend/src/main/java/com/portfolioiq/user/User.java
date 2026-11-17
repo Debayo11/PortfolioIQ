@@ -55,6 +55,9 @@ public class User {
     @PreUpdate
     void touch() { this.updatedAt = Instant.now(); }
 
+    public void markEmailVerified() { this.emailVerified = true; }
+    public void changePasswordHash(String hash) { this.passwordHash = hash; }
+
     public Long getId() { return id; }
     public String getEmail() { return email; }
     public String getPasswordHash() { return passwordHash; }

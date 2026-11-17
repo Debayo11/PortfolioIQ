@@ -26,7 +26,8 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable) // stateless API, bearer tokens, no cookies
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a -> a
-                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/verify-email",
+                        "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR")
