@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
     List<Transaction> findByPortfolioIdAndAssetIdAndTypeIn(Long portfolioId, Long assetId, Collection<TransactionType> types);
@@ -16,6 +17,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
     List<Transaction> findByPortfolioIdAndTypeIn(Long portfolioId, Collection<TransactionType> types);
 
     Optional<Transaction> findByIdAndPortfolioId(Long id, Long portfolioId);
+
+    List<Transaction> findByTransferGroup(UUID transferGroup);
+
+    @Query("select distinct t.assetId from Transaction t where t.assetId is not null")
+    List<Long> tradedAssetIds();
 
     /** Rows of [type, sum(totalAmount), count]. */
     @Query("select t.type, sum(t.totalAmount), count(t) from Transaction t where t.portfolioId = :portfolioId group by t.type")

@@ -22,6 +22,15 @@ app:
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
   market:
     api-key: ${MARKET_DATA_API_KEY:}
+    base-url: ${MARKET_DATA_BASE_URL:https://finnhub.io/api/v1}
+    cache-ttl-seconds: ${MARKET_CACHE_TTL_SECONDS:60}
+    refresh-enabled: ${MARKET_REFRESH_ENABLED:true}
+    refresh-interval-ms: ${MARKET_REFRESH_INTERVAL_MS:300000}
+    max-requests-per-refresh: ${MARKET_MAX_REQUESTS_PER_REFRESH:50}   # free API tiers allow ~60 calls/minute
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:10}
+    api-per-minute: ${RATE_LIMIT_API_PER_MINUTE:120}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   auth:
     # Set true in production so unverified accounts cannot sign in.

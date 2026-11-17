@@ -7,6 +7,7 @@ import com.portfolioiq.audit.AuditService;
 import com.portfolioiq.common.ApiException;
 import com.portfolioiq.finance.InsufficientHoldingsException;
 import com.portfolioiq.finance.TransactionType;
+import com.portfolioiq.notification.NotificationService;
 import com.portfolioiq.portfolio.Portfolio;
 import com.portfolioiq.portfolio.PortfolioRepository;
 import com.portfolioiq.transaction.TransactionDtos.CreateTransactionRequest;
@@ -37,13 +38,15 @@ class TransactionServiceTest {
     private final TransactionRepository txs = mock(TransactionRepository.class);
     private final DividendRepository dividends = mock(DividendRepository.class);
     private final AuditService audit = mock(AuditService.class);
+    private final NotificationService notifications = mock(NotificationService.class);
     private TransactionService service;
 
     private static BigDecimal d(String v) { return new BigDecimal(v); }
 
     @BeforeEach
     void setUp() {
-        service = new TransactionService(portfolios, assets, txs, dividends, audit, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new TransactionService(portfolios, assets, txs, dividends, audit, notifications,
+                Clock.fixed(NOW, ZoneOffset.UTC));
         when(portfolios.lockByIdAndUserId(PORTFOLIO, USER))
                 .thenReturn(Optional.of(new Portfolio(USER, "Main", null, "USD", null)));
         when(assets.findById(ASSET)).thenReturn(Optional.of(new Asset("ACME", "Acme Corp", AssetType.STOCK, null, "USD")));
@@ -130,5 +133,28 @@ class TransactionServiceTest {
         when(txs.findByIdAndPortfolioId(12L, PORTFOLIO)).thenReturn(Optional.of(deposit));
         service.delete(USER, PORTFOLIO, 12L);
         verify(txs).delete(deposit);
+    }
+
+    @Test
+    void transfersCannotBeRecordedThroughTheNormalEndpoint() {
+        var ex = assertThrows(ApiException.class,
+                () -> service.record(USER, PORTFOLIO, req(TransactionType.TRANSFER_IN, ASSET, "1", "10", null, null)));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+    }
+
+    @Test
+    void transferLegsCannotBeDeletedIndividually() {
+        Transaction leg = new Transaction(PORTFOLIO, ASSET, TransactionType.TRANSFER_OUT, d("1"), d("10"),
+                BigDecimal.ZERO, d("10"), EARLIER, null, java.util.UUID.randomUUID());
+        ReflectionTestUtils.setField(leg, "id", 20L);
+        when(txs.findByIdAndPortfolioId(20L, PORTFOLIO)).thenReturn(Optional.of(leg));
+        var ex = assertThrows(ApiException.class, () -> service.delete(USER, PORTFOLIO, 20L));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
+    }
+
+    @Test
+    void recordingATransactionNotifiesTheUser() {
+        service.record(USER, PORTFOLIO, req(TransactionType.DEPOSIT, null, null, null, null, "250"));
+        verify(notifications).notify(eq(USER), any(), any(), any());
     }
 }

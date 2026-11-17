@@ -22,6 +22,9 @@ public final class TransactionRules {
     public static Computed compute(TransactionType type, BigDecimal quantity, BigDecimal unitPrice,
                                    BigDecimal fee, BigDecimal amount) {
         if (type == null) throw new IllegalArgumentException("Transaction type is required");
+        if (type == TransactionType.TRANSFER_IN || type == TransactionType.TRANSFER_OUT) {
+            throw new IllegalArgumentException("Transfers are created with the transfer endpoint");
+        }
         BigDecimal f = fee == null ? BigDecimal.ZERO : fee;
         if (f.signum() < 0) throw new IllegalArgumentException("Fee cannot be negative");
         check("Fee", f, 4, 15);
@@ -50,6 +53,13 @@ public final class TransactionRules {
         }
         return new Computed(BigDecimal.ZERO.setScale(8), BigDecimal.ZERO.setScale(8),
                 BigDecimal.ZERO.setScale(4), amount.setScale(4, ROUNDING));
+    }
+
+    /** Validates a transfer quantity and returns it at storage scale. */
+    public static BigDecimal validateQuantity(BigDecimal quantity) {
+        positive("Quantity", quantity);
+        check("Quantity", quantity, 8, 16);
+        return quantity.setScale(8, ROUNDING);
     }
 
     private static boolean nonZero(BigDecimal v) { return v != null && v.signum() != 0; }

@@ -6,6 +6,9 @@ import com.portfolioiq.audit.AuditService;
 import com.portfolioiq.common.ApiException;
 import com.portfolioiq.common.PageResponse;
 import com.portfolioiq.finance.*;
+import com.portfolioiq.notification.NotificationService;
+import com.portfolioiq.notification.NotificationType;
+import com.portfolioiq.portfolio.Portfolio;
 import com.portfolioiq.portfolio.PortfolioRepository;
 import com.portfolioiq.transaction.TransactionDtos.*;
 import org.springframework.data.domain.PageRequest;
@@ -32,15 +35,18 @@ public class TransactionService {
     private final TransactionRepository txs;
     private final DividendRepository dividends;
     private final AuditService audit;
+    private final NotificationService notifications;
     private final Clock clock;
 
     public TransactionService(PortfolioRepository portfolios, AssetRepository assets, TransactionRepository txs,
-                              DividendRepository dividends, AuditService audit, Clock clock) {
+                              DividendRepository dividends, AuditService audit, NotificationService notifications,
+                              Clock clock) {
         this.portfolios = portfolios;
         this.assets = assets;
         this.txs = txs;
         this.dividends = dividends;
         this.audit = audit;
+        this.notifications = notifications;
         this.clock = clock;
     }
 
@@ -51,7 +57,7 @@ public class TransactionService {
      */
     @Transactional
     public TransactionResponse record(Long userId, Long portfolioId, CreateTransactionRequest req) {
-        portfolios.lockByIdAndUserId(portfolioId, userId).orElseThrow(TransactionService::portfolioNotFound);
+        Portfolio portfolio = portfolios.lockByIdAndUserId(portfolioId, userId).orElseThrow(TransactionService::portfolioNotFound);
 
         if (req.executedAt().isAfter(clock.instant().plus(Duration.ofMinutes(5)))) {
             throw badRequest("Transaction date cannot be in the future");
@@ -85,6 +91,7 @@ public class TransactionService {
         }
         audit.log(userId, "TRANSACTION_CREATED", "TRANSACTION", String.valueOf(saved.getId()),
                 req.type() + " in portfolio " + portfolioId);
+        notifyRecorded(userId, req.type(), c, asset, portfolio.getName());
         return toResponse(saved, asset == null ? null : asset.getSymbol());
     }
 
@@ -111,6 +118,10 @@ public class TransactionService {
         Transaction target = txs.findByIdAndPortfolioId(transactionId, portfolioId)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Transaction not found"));
 
+        if (target.getTransferGroup() != null) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "This is part of a transfer. Undo it with DELETE /api/transfers/" + target.getTransferGroup());
+        }
         if (TradeEvents.ASSET_TYPES.contains(target.getType())) {
             List<TradeEvent> remaining = loadAssetTransactions(portfolioId, target.getAssetId()).stream()
                     .filter(t -> !Objects.equals(t.getId(), target.getId()))
@@ -126,6 +137,18 @@ public class TransactionService {
         audit.log(userId, "TRANSACTION_DELETED", "TRANSACTION", String.valueOf(transactionId),
                 target.getType() + " in portfolio " + portfolioId);
     }
+
+    private void notifyRecorded(Long userId, TransactionType type, TransactionRules.Computed c, Asset asset, String portfolioName) {
+        if (type == TransactionType.DIVIDEND) {
+            notifications.notify(userId, NotificationType.DIVIDEND_RECEIVED, "Dividend received: " + asset.getSymbol(),
+                    plain(c.total()) + " credited to " + portfolioName);
+            return;
+        }
+        String what = asset != null ? plain(c.quantity()) + " " + asset.getSymbol() : plain(c.total());
+        notifications.notify(userId, NotificationType.TRANSACTION_RECORDED, type + " recorded", what + " in " + portfolioName);
+    }
+
+    private static String plain(java.math.BigDecimal v) { return v.stripTrailingZeros().toPlainString(); }
 
     private List<Transaction> loadAssetTransactions(Long portfolioId, Long assetId) {
         return txs.findByPortfolioIdAndAssetIdAndTypeIn(portfolioId, assetId, TradeEvents.ASSET_TYPES);
@@ -151,7 +174,8 @@ public class TransactionService {
 
     private static TransactionResponse toResponse(Transaction t, String symbol) {
         return new TransactionResponse(t.getId(), t.getPortfolioId(), t.getAssetId(), symbol, t.getType(),
-                t.getQuantity(), t.getUnitPrice(), t.getFee(), t.getTotalAmount(), t.getExecutedAt(), t.getNotes());
+                t.getQuantity(), t.getUnitPrice(), t.getFee(), t.getTotalAmount(), t.getExecutedAt(), t.getNotes(),
+                t.getTransferGroup());
     }
 
     private static ApiException portfolioNotFound() { return new ApiException(HttpStatus.NOT_FOUND, "Portfolio not found"); }

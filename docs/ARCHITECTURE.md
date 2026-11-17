@@ -34,3 +34,13 @@ Every portfolio-scoped query will filter by the authenticated user's id in the r
 - **Audit entries share the caller's transaction.** If an operation rolls back, so does its audit row. Failed logins are written outside a transaction so they persist.
 - **One-time tokens are stored hashed.** A leaked database cannot be used to reset passwords or verify emails.
 - **Errors are uniform.** `GlobalExceptionHandler` extends Spring's `ResponseEntityExceptionHandler`, so framework errors (404, 405, malformed JSON) use the same `ApiError` shape instead of surfacing as 500s.
+
+## Stage 3 decisions
+
+- **Provider abstraction.** `MarketDataProvider` has a simulated and a Finnhub implementation, chosen at startup by whether an API key exists. Everything downstream (cache, valuation, alerts) is provider-agnostic.
+- **Simulated data is a first-class, labelled source.** It is flagged in the data model (`market_prices.simulated`), in every quote, and in alert text, and is deterministic so demos and tests are repeatable. The generator is pure Java with no framework dependency.
+- **Read path: cache, then provider, then last stored price.** A cache or provider failure degrades to a stale-flagged price instead of an error. Redis failures never break a request (fail open), including for rate limiting.
+- **Refresh job is capped and locked.** A Redis lock prevents several instances refreshing at once, and a per-cycle cap respects free-tier API limits. Alert assets are refreshed first, then watchlists, then held assets.
+- **Transfers preserve cost basis.** `TRANSFER_OUT` removes quantity and cost at the average cost; `TRANSFER_IN` adds quantity at that carried unit cost. Neither realizes profit or loss. Both legs share a `transfer_group` id, enforced by a CHECK constraint, so they are created and undone as a pair. Portfolios are locked in ascending id order to avoid deadlocks.
+- **Alert rules are pure** (`AlertRules`) and one-shot: a triggered alert deactivates and notifies in the same transaction.
+- **Valuation is derived, never stored.** Market value and unrealized P&L are computed from the ledger and the latest price on each request.

@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
@@ -41,6 +42,10 @@ public class Transaction {
     @Column(length = 500)
     private String notes;
 
+    /** Links the two legs of an asset transfer between portfolios; null for every other transaction. */
+    @Column(name = "transfer_group", updatable = false)
+    private UUID transferGroup;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -59,6 +64,12 @@ public class Transaction {
         this.notes = notes;
     }
 
+    public Transaction(Long portfolioId, Long assetId, TransactionType type, BigDecimal quantity, BigDecimal unitPrice,
+                       BigDecimal fee, BigDecimal totalAmount, Instant executedAt, String notes, UUID transferGroup) {
+        this(portfolioId, assetId, type, quantity, unitPrice, fee, totalAmount, executedAt, notes);
+        this.transferGroup = transferGroup;
+    }
+
     public Long getId() { return id; }
     public Long getPortfolioId() { return portfolioId; }
     public Long getAssetId() { return assetId; }
@@ -69,4 +80,5 @@ public class Transaction {
     public BigDecimal getTotalAmount() { return totalAmount; }
     public Instant getExecutedAt() { return executedAt; }
     public String getNotes() { return notes; }
+    public UUID getTransferGroup() { return transferGroup; }
 }

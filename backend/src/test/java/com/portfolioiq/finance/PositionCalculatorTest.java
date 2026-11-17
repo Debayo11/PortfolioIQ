@@ -85,4 +85,29 @@ class PositionCalculatorTest {
                 ev(Type.BUY, "0.2", "10", "0", 1)));
         assertEquals(0, d("0.3").compareTo(pos.quantity())); // would fail with double (0.30000000000000004)
     }
+
+    @Test
+    void transferOutRemovesCostWithoutRealizingProfit() {
+        var pos = PositionCalculator.calculate(List.of(
+                ev(Type.BUY, "10", "100", "0", 0),
+                ev(Type.TRANSFER_OUT, "4", "0", "0", 1)));
+        assertEquals(0, d("6").compareTo(pos.quantity()));
+        assertEquals(0, d("600").compareTo(pos.totalCost()));
+        assertEquals(0, pos.realizedPnl().signum());
+    }
+
+    @Test
+    void transferInCarriesCostBasis() {
+        var pos = PositionCalculator.calculate(List.of(ev(Type.TRANSFER_IN, "4", "100", "0", 0)));
+        assertEquals(0, d("400").compareTo(pos.totalCost()));
+        assertEquals(0, d("100").compareTo(pos.averageCost()));
+        assertEquals(0, d("125").compareTo(pos.unrealizedPnl(d("125")).add(pos.totalCost()).divide(d("4"))));
+    }
+
+    @Test
+    void cannotTransferMoreThanHeld() {
+        assertThrows(InsufficientHoldingsException.class, () -> PositionCalculator.calculate(List.of(
+                ev(Type.BUY, "2", "10", "0", 0),
+                ev(Type.TRANSFER_OUT, "3", "0", "0", 1))));
+    }
 }

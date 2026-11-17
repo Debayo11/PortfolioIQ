@@ -25,10 +25,23 @@ public final class PortfolioDtos {
         }
     }
 
+    /**
+     * Price fields are null when no price is available. priceSimulated marks development data;
+     * priceStale means the live source was unavailable and the last stored price is shown.
+     */
     public record HoldingResponse(Long assetId, String symbol, String name, BigDecimal quantity, BigDecimal averageCost,
-                                  BigDecimal totalCost, BigDecimal realizedPnl, BigDecimal dividendIncome) {}
+                                  BigDecimal totalCost, BigDecimal realizedPnl, BigDecimal dividendIncome,
+                                  BigDecimal price, BigDecimal marketValue, BigDecimal unrealizedPnl, BigDecimal dayChange,
+                                  Instant priceAsOf, String priceSource, boolean priceSimulated, boolean priceStale) {}
 
+    /**
+     * Market-based fields cover priced positions only; unpricedPositions says how many open positions were excluded.
+     * totalReturn = realized + unrealized + dividends - standalone fees. A projection is never included here.
+     */
     public record PortfolioSummaryResponse(Long portfolioId, String baseCurrency, BigDecimal investedCost,
-                                           BigDecimal realizedPnl, BigDecimal dividendIncome, BigDecimal totalFees,
-                                           BigDecimal netDeposits, int openPositions, long transactionCount, String note) {}
+                                           BigDecimal marketValue, BigDecimal unrealizedPnl, BigDecimal realizedPnl,
+                                           BigDecimal dividendIncome, BigDecimal totalFees, BigDecimal totalReturn,
+                                           BigDecimal dayChange, BigDecimal netDeposits, int openPositions,
+                                           int unpricedPositions, boolean pricesSimulated, long transactionCount,
+                                           String note) {}
 }

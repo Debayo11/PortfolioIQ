@@ -9,6 +9,12 @@ import static com.portfolioiq.finance.PositionCalculator.ROUNDING;
 public record Position(BigDecimal quantity, BigDecimal totalCost, BigDecimal averageCost,
                        BigDecimal realizedPnl, BigDecimal dividendIncome, BigDecimal totalFees) {
 
+    /** Cost per unit at 8 decimal places, used when carrying cost basis across a transfer. */
+    public BigDecimal unitCost() {
+        return quantity.signum() == 0 ? BigDecimal.ZERO
+                : totalCost.divide(quantity, PositionCalculator.INTERNAL_SCALE, ROUNDING);
+    }
+
     public BigDecimal marketValue(BigDecimal price) {
         return quantity.multiply(price).setScale(MONEY_SCALE, ROUNDING);
     }

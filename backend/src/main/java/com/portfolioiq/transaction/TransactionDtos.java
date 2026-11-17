@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 public final class TransactionDtos {
     private TransactionDtos() {}
@@ -26,5 +27,5 @@ public final class TransactionDtos {
 
     public record TransactionResponse(Long id, Long portfolioId, Long assetId, String assetSymbol, TransactionType type,
                                       BigDecimal quantity, BigDecimal unitPrice, BigDecimal fee, BigDecimal totalAmount,
-                                      Instant executedAt, String notes) {}
+                                      Instant executedAt, String notes, UUID transferId) {}
 }
