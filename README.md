@@ -2,7 +2,7 @@
 
 Investment and portfolio management platform: Spring Boot + PostgreSQL backend, React/TypeScript frontend (in progress).
 
-> **Status: Stage 4 of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
+> **Status: Stage 5A of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
 
 ## Roadmap
 
@@ -12,8 +12,9 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 | 2 | Portfolios, assets, transactions API, ownership checks, audit logging, email verification and password recovery | **Done** |
 | 3 | Market data (real API if key set, otherwise labelled simulated data), watchlists, price alerts, notifications, Redis caching, rate limiting, asset transfers between portfolios | **Done** |
 | 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark and portfolio comparison | **Done** |
-| 5 | React + TypeScript + Tailwind + Recharts frontend, admin panel | Next |
-| 6 | Integration tests (Testcontainers), production config, CI | Planned |
+| 5A | Installable app for phones and computers (React, TypeScript, Tailwind, Recharts): sign-in, dashboard, portfolios, transactions, transfers, market, watchlists, alerts, notifications, analytics | **Done** |
+| 5B | Administrator panel (users, roles, activity, statistics, API usage, market data settings) with its backend endpoints | Next |
+| 6 | Integration tests (Testcontainers), end-to-end tests, production hardening, CI | Planned |
 
 ## What works so far
 
@@ -42,6 +43,11 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Asset transfers between your portfolios that carry cost basis and realize no profit or loss; undo is available while later sales do not depend on the shares
 - Rate limiting in Redis: 10 requests/min on sign-in, registration and password endpoints, 120 requests/min elsewhere, per client address
 
+**Stage 5A**
+- An installable app for phones, tablets and computers from one codebase (see `frontend/README.md`): bottom tabs on phones, sidebar on computers, install button, offline banner, safe-area support
+- Screens: sign-in, registration, email verification, password reset, dashboard, portfolios (holdings, transactions, transfers), market and asset pages with price charts, watchlists, price alerts, notification centre, analytics (performance, risk, allocation, benchmark and portfolio comparison), settings
+- Every button, form, filter and chart is wired to the API; nothing is a placeholder. Simulated data is badged wherever it appears
+
 **Stage 4**
 - Portfolio value over time, with cost basis alongside it, rebuilt from your transactions and historical prices (daily resolution)
 - Time-weighted return, so adding or withdrawing money is not mistaken for performance. Lifetime figures: realized and unrealized gains, dividends, total return and simple ROI
@@ -67,7 +73,10 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Transactions cannot be edited, only deleted and re-entered. Transfers are undone as a pair
 - Existing JWTs stay valid until they expire after a password reset (default 60 minutes)
 - Rate limiting uses the connection address. Behind a reverse proxy, configure the proxy and Spring's forwarded-header handling so real client addresses are used
-- The frontend routes the emailed links point to (`/verify-email`, `/reset-password`) arrive in Stage 5; until then POST the token to the API
+- Installing the app on a phone requires serving it over HTTPS (browsers only allow installation on secure origins; `localhost` works for the computer you develop on). See `frontend/README.md`
+- Sign-in lasts as long as the token (60 minutes by default); there are no refresh tokens yet
+- The administrator panel is Stage 5B. The `/api/admin/audit-logs` endpoint already exists
+- The frontend has been type-checked and its logic unit tested, but a full `npm install && npm run build` has not been run in the environment this was written in
 - Backend automated tests are unit tests. Integration tests against a real PostgreSQL and Redis arrive in Stage 6
 
 ## Architecture
@@ -109,6 +118,7 @@ portfolioiq/
 │       │   ├── application.yml
 │       │   └── db/migration/V1__init_schema.sql
 │       └── test/java/com/portfolioiq/  finance/ and transaction/ unit tests
+├── frontend/          installable React app (see frontend/README.md)
 ├── docs/ARCHITECTURE.md
 ├── docker-compose.yml
 ├── .env.example
@@ -117,6 +127,8 @@ portfolioiq/
 
 ## Run it
 
+With Docker Compose the whole stack (database, cache, backend and the web app) starts together and the app is at http://localhost:3000.
+
 Prerequisites: Docker + Docker Compose (or Java 21, Maven 3.9+, PostgreSQL 16, Redis 7 locally).
 
 ```bash
@@ -124,6 +136,7 @@ cp .env.example .env          # then edit: set a strong POSTGRES_PASSWORD and JW
 docker compose up --build
 ```
 
+- App: http://localhost:3000
 - API: http://localhost:8080
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Health: http://localhost:8080/actuator/health

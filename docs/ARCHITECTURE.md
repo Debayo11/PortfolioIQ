@@ -55,3 +55,13 @@ Every portfolio-scoped query will filter by the authenticated user's id in the r
 - **Today's point equals the live valuation.** The latest quote overrides today's historical close so the final chart point matches the holdings and summary endpoints.
 - **Currencies are never mixed.** Aggregation happens within one base currency; other portfolios are returned in `excludedPortfolios`. Comparison reports percentages only and warns when currencies differ.
 - **History is separate from projection.** Every report carries a disclaimer, and no endpoint forecasts anything.
+
+## Stage 5A decisions
+
+- **One codebase for phones and computers: a Progressive Web App.** It installs from the browser on iOS, Android, Windows, macOS and Linux, updates itself, and avoids store review. Native wrappers (Capacitor, Tauri) can be added later around the same build.
+- **Same-origin API access.** The Vite dev server and nginx both proxy `/api` to the backend, so the browser needs no CORS and tokens never cross origins. CORS is available but off by default for native shells.
+- **The service worker caches the app shell only.** Financial data always comes from the network; an offline banner tells people why figures may be out of date.
+- **Responsive by structure, not by shrinking.** A bottom tab bar and card lists on phones, a sidebar and tables on computers, safe-area padding for notches, and 16px inputs so iOS does not zoom.
+- **The server is the authority.** Client validation mirrors server rules for instant feedback; money maths is never done in the browser, which only formats numbers.
+- **Server state through React Query.** Caching, background refresh and retry live in one place. Client errors (4xx) are not retried.
+- **Small, dependency-light UI.** Tailwind design tokens (navy and charcoal surfaces, emerald gains, red losses), a handful of primitives, Recharts for charts, no component library.
