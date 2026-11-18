@@ -2,7 +2,7 @@
 
 Investment and portfolio management platform: Spring Boot + PostgreSQL backend, React/TypeScript frontend (in progress).
 
-> **Status: Stage 3 of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
+> **Status: Stage 4 of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
 
 ## Roadmap
 
@@ -11,8 +11,8 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 | 1 | Architecture, PostgreSQL schema (Flyway), Docker/Compose, JWT auth + roles, financial calculation core + tests | **Done** |
 | 2 | Portfolios, assets, transactions API, ownership checks, audit logging, email verification and password recovery | **Done** |
 | 3 | Market data (real API if key set, otherwise labelled simulated data), watchlists, price alerts, notifications, Redis caching, rate limiting, asset transfers between portfolios | **Done** |
-| 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark comparison | Next |
-| 5 | React + TypeScript + Tailwind + Recharts frontend, admin panel | Planned |
+| 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark and portfolio comparison | **Done** |
+| 5 | React + TypeScript + Tailwind + Recharts frontend, admin panel | Next |
 | 6 | Integration tests (Testcontainers), production config, CI | Planned |
 
 ## What works so far
@@ -42,12 +42,26 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Asset transfers between your portfolios that carry cost basis and realize no profit or loss; undo is available while later sales do not depend on the shares
 - Rate limiting in Redis: 10 requests/min on sign-in, registration and password endpoints, 120 requests/min elsewhere, per client address
 
+**Stage 4**
+- Portfolio value over time, with cost basis alongside it, rebuilt from your transactions and historical prices (daily resolution)
+- Time-weighted return, so adding or withdrawing money is not mistaken for performance. Lifetime figures: realized and unrealized gains, dividends, total return and simple ROI
+- Risk: annualised volatility, maximum drawdown (with peak and trough dates), best and worst day, share of positive days
+- Allocation by asset and by asset type, with a diversification score (concentration index, effective number of holdings, plain-language level)
+- Benchmark comparison against any asset in the catalogue, and side-by-side comparison of 2 to 5 portfolios
+- Per-asset breakdown (realized vs unrealized vs dividends, return %), best and worst performer, movers, recent transactions and a combined dashboard endpoint
+- Several portfolios are combined only if they share a base currency; the others are listed as `excludedPortfolios`, never silently dropped
+- Every report states whether prices are simulated, flags days that used estimated prices, and carries a "past performance only, no projections" statement plus plain-language metric explanations
+
 ## Known limitations (deliberate, to be addressed in later stages)
 
 - Real market data comes from one provider (Finnhub). Its free tier allows about 60 calls a minute, so the refresh job caps each cycle at 50 assets. It does not return volume or market cap, so those fields are empty rather than invented
 - Real price history builds up from the prices this app stores after you start it (the provider's candle data is a paid feature). Simulated history is generated on demand
 - Alerts fire once, then deactivate. Recreate an alert to keep watching
-- Portfolio value over time and comparisons are Stage 4. No projections are produced anywhere
+- Analytics cover holdings only. Cash is not tracked, so deposits, withdrawals and standalone fee transactions are not part of the performance series or simple ROI (the summary endpoint does subtract standalone fees)
+- Return maths assumes money moves at the end of each day, and one day's loss is capped at -100%. Volatility uses 252 trading days. There is no risk-free rate, so no Sharpe ratio
+- A benchmark is compared on price change only (its dividends are not included), and it must have price history covering the start of the period
+- Daily resolution only: the 24H range shows the last two daily points
+- No projections or forecasts are produced anywhere, by design
 - No currency conversion: record prices in the portfolio's base currency; transfers require matching base currencies
 - Cash balance is not enforced: withdrawals and buys are not checked against deposits
 - Transactions cannot be edited, only deleted and re-entered. Transfers are undone as a pair
@@ -85,6 +99,7 @@ portfolioiq/
 │       │   ├── alert/       price alerts and rules
 │       │   ├── notification/ in-app notification centre
 │       │   ├── watchlist/   watchlists
+│       │   ├── analytics/   series builder, time-weighted return, risk, diversification (framework-free) + API
 │       │   ├── config/      SecurityConfig, OpenApiConfig
 │       │   ├── security/    JwtService, JwtAuthenticationFilter, UserDetailsService
 │       │   ├── user/        User, Role, repositories
@@ -158,6 +173,14 @@ cd backend && mvn test
 | POST | `/api/notifications/{id}/read`, `/api/notifications/read-all` | |
 | POST | `/api/transfers` | move shares between your portfolios |
 | DELETE | `/api/transfers/{transferId}` | undo a transfer |
+
+| GET | `/api/analytics/dashboard` | totals, best/worst performer, recent transactions, movers, allocation, performance |
+| GET | `/api/analytics/performance` | value history, returns, risk, optional `benchmarkAssetId` |
+| GET | `/api/analytics/allocation` | by asset and by type, with diversification |
+| GET | `/api/analytics/assets` | per-asset realized, unrealized, dividends, return % |
+| GET | `/api/analytics/compare?portfolioIds=1,2` | 2 to 5 portfolios, rebased to 100 |
+
+Analytics endpoints accept `range` (`24H`, `7D`, `30D`, `3M`, `6M`, `1Y`, `ALL`). Omit `portfolioId` to combine all portfolios in one base currency (choose it with `currency`).
 
 Full request/response schemas are in Swagger UI.
 

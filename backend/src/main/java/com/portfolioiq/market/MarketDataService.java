@@ -73,12 +73,16 @@ public class MarketDataService {
 
     /** Price history. Simulated data is generated; real data is the history this app has stored. */
     @Transactional(readOnly = true)
-    public List<PricePoint> history(Asset asset, HistoryRange range) {
-        if (provider.supportsHistory()) return provider.history(asset.getSymbol(), range.days());
+    public List<PricePoint> history(Asset asset, HistoryRange range) { return history(asset, range.days()); }
 
-        Instant from = clock.instant().minus(Duration.ofDays(range.days()));
+    /** Same as above for an arbitrary number of days (used by analytics to value past holdings). */
+    @Transactional(readOnly = true)
+    public List<PricePoint> history(Asset asset, int days) {
+        if (provider.supportsHistory()) return provider.history(asset.getSymbol(), days);
+
+        Instant from = clock.instant().minus(Duration.ofDays(days));
         List<MarketPrice> rows = prices.findByAssetIdAndPricedAtGreaterThanEqualOrderByPricedAtAsc(asset.getId(), from);
-        if (range.days() <= 1) {
+        if (days <= 1) {
             return rows.stream().map(r -> new PricePoint(r.getPricedAt(), r.getPrice())).toList();
         }
         Map<LocalDate, MarketPrice> lastPerDay = new LinkedHashMap<>();

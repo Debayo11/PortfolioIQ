@@ -20,6 +20,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
     List<Transaction> findByTransferGroup(UUID transferGroup);
 
+    List<Transaction> findByPortfolioIdInAndTypeIn(Collection<Long> portfolioIds, Collection<TransactionType> types);
+
+    List<Transaction> findTop5ByPortfolioIdInOrderByExecutedAtDescIdDesc(Collection<Long> portfolioIds);
+
     @Query("select distinct t.assetId from Transaction t where t.assetId is not null")
     List<Long> tradedAssetIds();
 

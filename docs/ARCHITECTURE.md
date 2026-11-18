@@ -44,3 +44,14 @@ Every portfolio-scoped query will filter by the authenticated user's id in the r
 - **Transfers preserve cost basis.** `TRANSFER_OUT` removes quantity and cost at the average cost; `TRANSFER_IN` adds quantity at that carried unit cost. Neither realizes profit or loss. Both legs share a `transfer_group` id, enforced by a CHECK constraint, so they are created and undone as a pair. Portfolios are locked in ascending id order to avoid deadlocks.
 - **Alert rules are pure** (`AlertRules`) and one-shot: a triggered alert deactivates and notifies in the same transaction.
 - **Valuation is derived, never stored.** Market value and unrealized P&L are computed from the ledger and the latest price on each request.
+
+## Stage 4 decisions
+
+- **A framework-free engine.** `SeriesBuilder`, `Returns`, `RiskMetrics`, `Diversification` and `Breakdown` have no Spring or database dependencies, so every formula is unit tested against hand-calculated values. `AnalyticsService` only loads data, calls the engine and shapes responses.
+- **One source of truth for cost basis.** The daily series replays each asset through `PositionCalculator`, so analytics always agree with holdings and the portfolio summary.
+- **Time-weighted, not money-weighted, for performance.** Each day's return is `(end value - net flow + dividends) / previous value - 1`, chained into an index starting at 100. Drawdown and volatility are computed on that index, so contributions and withdrawals cannot masquerade as gains or losses.
+- **Transfers between your own portfolios net to zero** when portfolios are combined, because both legs are valued at the same market price on the same day.
+- **Honest about missing data.** When no market price exists for a day, the last trade price is used and the day is flagged `approximated`. The report lists warnings (simulated prices, estimated days, unpriced positions, a benchmark with no history) instead of presenting a clean-looking number.
+- **Today's point equals the live valuation.** The latest quote overrides today's historical close so the final chart point matches the holdings and summary endpoints.
+- **Currencies are never mixed.** Aggregation happens within one base currency; other portfolios are returned in `excludedPortfolios`. Comparison reports percentages only and warns when currencies differ.
+- **History is separate from projection.** Every report carries a disclaimer, and no endpoint forecasts anything.
