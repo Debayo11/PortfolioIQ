@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EMPTY, fmtAgo, fmtDate, fmtMoney, fmtNumber, fmtPercent, humanize, tone, toneClass } from './format';
+import { EMPTY, fmtAgo, fmtDate, fmtDuration, fmtMoney, fmtNumber, fmtPercent, humanize, tone, toneClass } from './format';
 
 describe('format', () => {
   it('formats money and falls back for missing values', () => {
@@ -50,5 +50,14 @@ describe('format', () => {
 
   it('humanizes enum values', () => {
     expect(humanize('PERCENT_MOVE')).toBe('Percent move');
+  });
+
+  it('formats durations compactly', () => {
+    expect(fmtDuration(45)).toBe('45s');
+    expect(fmtDuration(300)).toBe('5m');
+    expect(fmtDuration(3700)).toBe('1h 1m');
+    expect(fmtDuration(93784)).toBe('1d 2h');
+    expect(fmtDuration(null)).toBe(EMPTY);
+    expect(fmtDuration(-1)).toBe(EMPTY);
   });
 });

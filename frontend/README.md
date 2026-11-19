@@ -8,6 +8,12 @@ browser and can **install it** so it launches in its own window with its own ico
 - **Installable:** Chrome and Edge (Windows, macOS, Linux, ChromeOS, Android) show an Install button; on iPhone and iPad use Share, then Add to Home Screen
 - **Offline behaviour:** the app shell loads offline; financial data is never served from a cache, and an offline banner explains why data is stale
 
+## Administration
+
+Users with the Administrator role get an Administration area (sidebar on computers, a card in Settings on phones):
+overview statistics, user and role management, activity log, system log and API usage, and market data controls.
+See the repository README for creating the first administrator.
+
 ## Run it
 
 ```bash

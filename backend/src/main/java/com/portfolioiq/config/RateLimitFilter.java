@@ -2,6 +2,7 @@ package com.portfolioiq.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.portfolioiq.common.ApiError;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,17 +31,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final StringRedisTemplate redis;
     private final ObjectMapper mapper;
+    private final MeterRegistry registry;
     private final boolean enabled;
     private final int authLimit;
     private final int apiLimit;
     private final AtomicBoolean redisDownLogged = new AtomicBoolean(false);
 
-    public RateLimitFilter(StringRedisTemplate redis, ObjectMapper mapper,
+    public RateLimitFilter(StringRedisTemplate redis, ObjectMapper mapper, MeterRegistry registry,
                            @Value("${app.rate-limit.enabled:true}") boolean enabled,
                            @Value("${app.rate-limit.auth-per-minute:10}") int authLimit,
                            @Value("${app.rate-limit.api-per-minute:120}") int apiLimit) {
         this.redis = redis;
         this.mapper = mapper;
+        this.registry = registry;
         this.enabled = enabled;
         this.authLimit = authLimit;
         this.apiLimit = apiLimit;
@@ -63,6 +66,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             redisDownLogged.set(false);
             if (count != null && count == 1L) redis.expire(key, Duration.ofSeconds(120));
             if (count != null && count > limit) {
+                registry.counter("portfolioiq.ratelimit.rejected", "bucket", authBucket ? "auth" : "api").increment();
                 res.setStatus(429);
                 res.setHeader("Retry-After", String.valueOf(60 - (now % 60)));
                 res.setHeader("X-RateLimit-Limit", String.valueOf(limit));

@@ -69,4 +69,19 @@ export const api = {
     assets: (q: { portfolioId?: number; currency?: string }) => http.get<T.AssetPerformance[]>('/api/analytics/assets', q),
     compare: (portfolioIds: number[], range: Range) => http.get<T.ComparisonReport>('/api/analytics/compare', { portfolioIds, range }),
   },
+  admin: {
+    users: (q: { q?: string; role?: string; enabled?: boolean; page?: number; size?: number }) =>
+      http.get<T.PageResponse<T.AdminUser>>('/api/admin/users', q),
+    setRoles: (id: number, roles: T.Role[]) => http.put<T.AdminUser>(`/api/admin/users/${id}/roles`, { roles }),
+    setEnabled: (id: number, enabled: boolean) => http.put<T.AdminUser>(`/api/admin/users/${id}/enabled`, { enabled }),
+    statistics: () => http.get<T.AdminStatistics>('/api/admin/statistics'),
+    auditLogs: (q: { userId?: number; action?: string; from?: string; to?: string; page?: number; size?: number }) =>
+      http.get<T.PageResponse<T.AuditEntry>>('/api/admin/audit-logs', q),
+    auditActions: () => http.get<string[]>('/api/admin/audit-logs/actions'),
+    logs: (q: { level?: string; q?: string; limit?: number }) => http.get<T.SystemLogEntry[]>('/api/admin/logs', q),
+    apiUsage: () => http.get<T.ApiUsage>('/api/admin/api-usage'),
+    market: () => http.get<T.MarketAdminView>('/api/admin/market'),
+    updateMarket: (body: { refreshEnabled: boolean; maxRequestsPerRefresh: number }) => http.put<T.MarketAdminView>('/api/admin/market/settings', body),
+    refreshMarket: () => http.post<T.RefreshResult>('/api/admin/market/refresh'),
+  },
 };

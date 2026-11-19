@@ -24,6 +24,16 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 
     List<Transaction> findTop5ByPortfolioIdInOrderByExecutedAtDescIdDesc(Collection<Long> portfolioIds);
 
+    /** Rows of [portfolio currency, type, count, sum of amounts]. Sums stay per currency. */
+    @Query("select p.baseCurrency, t.type, count(t), sum(t.totalAmount) from Transaction t, Portfolio p "
+            + "where t.portfolioId = p.id group by p.baseCurrency, t.type")
+    List<Object[]> volumeByCurrencyAndType();
+
+    /** Rows of [day, count] of transactions recorded, in UTC. */
+    @Query(value = "select cast((created_at at time zone 'UTC') as date) as day, count(*) from transactions "
+            + "where created_at >= :from group by 1 order by 1", nativeQuery = true)
+    List<Object[]> createdPerDay(@Param("from") java.time.Instant from);
+
     @Query("select distinct t.assetId from Transaction t where t.assetId is not null")
     List<Long> tradedAssetIds();
 

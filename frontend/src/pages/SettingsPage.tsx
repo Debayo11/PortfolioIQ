@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { CheckCircle2, Download, LogOut, MailWarning, Share, Smartphone } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { CheckCircle2, Download, LogOut, MailWarning, ShieldCheck, Share, Smartphone } from 'lucide-react';
 import { api } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { Badge, Button, Card, ErrorNote, Notice, PageHeader, SectionTitle } from '../components/ui';
@@ -8,7 +9,7 @@ import { fmtDateTime, humanize } from '../lib/format';
 import { sessionStore } from '../lib/session';
 
 export function SettingsPage() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const { installed, canInstall, showIosSteps, install } = useInstall();
   const status = useQuery({ queryKey: ['market-status'], queryFn: api.market.status, staleTime: 5 * 60_000 });
   const resend = useMutation({ mutationFn: () => api.auth.resendVerification() });
@@ -27,6 +28,14 @@ export function SettingsPage() {
           {session && <p className="mt-3 text-xs text-ink-400">Signed in until {fmtDateTime(new Date(session.expiresAt).toISOString())}</p>}
           <Button variant="secondary" className="mt-4" icon={<LogOut className="h-4 w-4" />} onClick={logout}>Sign out</Button>
         </Card>
+
+        {hasRole('ADMINISTRATOR') && (
+          <Card>
+            <SectionTitle>Administration</SectionTitle>
+            <p className="text-sm text-ink-300">Manage users and roles, review activity and logs, and control market data refreshing.</p>
+            <Link to="/admin"><Button className="mt-4" icon={<ShieldCheck className="h-4 w-4" />}>Open administration</Button></Link>
+          </Card>
+        )}
 
         <Card>
           <SectionTitle>Email</SectionTitle>

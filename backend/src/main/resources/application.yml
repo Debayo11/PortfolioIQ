@@ -32,6 +32,8 @@ app:
     auth-per-minute: ${RATE_LIMIT_AUTH_PER_MINUTE:10}
     api-per-minute: ${RATE_LIMIT_API_PER_MINUTE:120}
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  # The one email address that becomes the first administrator once it is verified. Leave empty after setup.
+  bootstrap-admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:}   # comma-separated; empty means same-origin only
   auth:

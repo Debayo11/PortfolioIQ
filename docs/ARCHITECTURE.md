@@ -65,3 +65,14 @@ Every portfolio-scoped query will filter by the authenticated user's id in the r
 - **The server is the authority.** Client validation mirrors server rules for instant feedback; money maths is never done in the browser, which only formats numbers.
 - **Server state through React Query.** Caching, background refresh and retry live in one place. Client errors (4xx) are not retried.
 - **Small, dependency-light UI.** Tailwind design tokens (navy and charcoal surfaces, emerald gains, red losses), a handful of primitives, Recharts for charts, no component library.
+
+## Stage 5B decisions
+
+- **Authorisation in three layers.** `/api/admin/**` requires the administrator role in `SecurityConfig`, every admin controller repeats it with `@PreAuthorize`, and the app hides the screens from everyone else. The first two are what actually protect the data.
+- **Roles and the enabled flag are read from the database on every request, not from the token.** Demoting or disabling someone takes effect immediately, with no waiting for their token to expire.
+- **Lock-out protection.** Administrators cannot disable themselves or remove their own role, and the last enabled administrator cannot be demoted or disabled. These rules live in one service and are unit tested.
+- **Secure bootstrap.** The first administrator is granted only to the address in `BOOTSTRAP_ADMIN_EMAIL`, only after that address is verified, and only while no enabled administrator exists. Registering someone else's address first gains nothing.
+- **Secrets stay out of the panel.** Logs are redacted (one-time links, JWTs, bearer tokens, `password=`, `token=`, keys) and keep only an exception's class name. The market panel reports whether an API key is configured, never the key, and the provider stays an environment setting.
+- **Operational data without new infrastructure.** API usage reads the metrics Spring Boot already records, and the log view is an in-memory ring buffer. Both are per instance and reset on restart; that limit is stated in the UI.
+- **Runtime settings in the database.** A small `app_settings` table holds the few things an administrator may change (refresh on/off, per-cycle cap). Defaults still come from configuration.
+- **Everything an administrator does is audited**, including manual refreshes and setting changes.

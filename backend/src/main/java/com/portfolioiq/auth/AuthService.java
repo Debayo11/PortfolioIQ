@@ -1,5 +1,6 @@
 package com.portfolioiq.auth;
 
+import com.portfolioiq.admin.AdminBootstrap;
 import com.portfolioiq.audit.AuditService;
 import com.portfolioiq.auth.AuthDtos.*;
 import com.portfolioiq.common.ApiException;
@@ -30,12 +31,13 @@ public class AuthService {
     private final TokenService tokens;
     private final EmailService email;
     private final AuditService audit;
+    private final AdminBootstrap bootstrap;
     private final String frontendUrl;
     private final boolean requireVerifiedEmail;
 
     public AuthService(UserRepository users, RoleRepository roles, PasswordEncoder encoder,
                        AuthenticationManager authManager, JwtService jwt, TokenService tokens,
-                       EmailService email, AuditService audit,
+                       EmailService email, AuditService audit, AdminBootstrap bootstrap,
                        @Value("${app.frontend-url}") String frontendUrl,
                        @Value("${app.auth.require-verified-email:false}") boolean requireVerifiedEmail) {
         this.users = users;
@@ -46,6 +48,7 @@ public class AuthService {
         this.tokens = tokens;
         this.email = email;
         this.audit = audit;
+        this.bootstrap = bootstrap;
         this.frontendUrl = frontendUrl;
         this.requireVerifiedEmail = requireVerifiedEmail;
     }
@@ -95,6 +98,7 @@ public class AuthService {
         user.markEmailVerified();
         users.save(user);
         audit.log(userId, "EMAIL_VERIFIED", "USER", String.valueOf(userId), null);
+        bootstrap.promoteIfEligible(user);
     }
 
     @Transactional

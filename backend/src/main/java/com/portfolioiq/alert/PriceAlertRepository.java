@@ -15,6 +15,8 @@ public interface PriceAlertRepository extends JpaRepository<PriceAlert, Long> {
 
     long countByUserIdAndActiveTrue(Long userId);
 
+    long countByActiveTrue();
+
     @Query("select distinct a.assetId from PriceAlert a where a.active = true")
     List<Long> activeAssetIds();
 }

@@ -3,6 +3,7 @@ package com.portfolioiq.user;
 import jakarta.persistence.*;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -56,6 +57,8 @@ public class User {
     void touch() { this.updatedAt = Instant.now(); }
 
     public void markEmailVerified() { this.emailVerified = true; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public void replaceRoles(Collection<Role> newRoles) { roles.clear(); roles.addAll(newRoles); }
     public void changePasswordHash(String hash) { this.passwordHash = hash; }
 
     public Long getId() { return id; }
@@ -66,4 +69,5 @@ public class User {
     public boolean isEnabled() { return enabled; }
     public boolean isEmailVerified() { return emailVerified; }
     public Set<Role> getRoles() { return roles; }
+    public Instant getCreatedAt() { return createdAt; }
 }

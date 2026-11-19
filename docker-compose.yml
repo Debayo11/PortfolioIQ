@@ -47,6 +47,7 @@ services:
       APP_MAIL_LOG_ONLY: ${APP_MAIL_LOG_ONLY:-false}
       MAIL_FROM: ${MAIL_FROM:-no-reply@portfolioiq.local}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
       REQUIRE_VERIFIED_EMAIL: ${REQUIRE_VERIFIED_EMAIL:-false}
       # To send real email, add: SPRING_MAIL_HOST, SPRING_MAIL_PORT, SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD
     ports:

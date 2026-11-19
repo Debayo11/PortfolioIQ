@@ -85,3 +85,15 @@ export function humanize(value: string): string {
   const s = value.toLowerCase().replace(/_/g, ' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+/** 93784 seconds -> "1d 2h", 3700 -> "1h 1m", 45 -> "45s". */
+export function fmtDuration(totalSeconds: number | null | undefined): string {
+  if (totalSeconds == null || Number.isNaN(totalSeconds) || totalSeconds < 0) return EMPTY;
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${Math.floor(totalSeconds)}s`;
+}

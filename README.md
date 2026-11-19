@@ -2,7 +2,7 @@
 
 Investment and portfolio management platform: Spring Boot + PostgreSQL backend, React/TypeScript frontend (in progress).
 
-> **Status: Stage 5A of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
+> **Status: Stage 5B of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
 
 ## Roadmap
 
@@ -13,7 +13,7 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 | 3 | Market data (real API if key set, otherwise labelled simulated data), watchlists, price alerts, notifications, Redis caching, rate limiting, asset transfers between portfolios | **Done** |
 | 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark and portfolio comparison | **Done** |
 | 5A | Installable app for phones and computers (React, TypeScript, Tailwind, Recharts): sign-in, dashboard, portfolios, transactions, transfers, market, watchlists, alerts, notifications, analytics | **Done** |
-| 5B | Administrator panel (users, roles, activity, statistics, API usage, market data settings) with its backend endpoints | Next |
+| 5B | Administrator panel (users, roles, activity, statistics, system log, API usage, market data controls) with its backend endpoints | **Done** |
 | 6 | Integration tests (Testcontainers), end-to-end tests, production hardening, CI | Planned |
 
 ## What works so far
@@ -42,6 +42,24 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Holdings and portfolio summary now include market value, unrealized P&L, total return and today's change, with simulated/stale/unpriced flags
 - Asset transfers between your portfolios that carry cost basis and realize no profit or loss; undo is available while later sales do not depend on the shares
 - Rate limiting in Redis: 10 requests/min on sign-in, registration and password endpoints, 120 requests/min elsewhere, per client address
+
+**Stage 5B (administrators)**
+- **Users:** search and filter, assign roles, enable or disable accounts. Guard rails: you cannot disable yourself or remove your own administrator role, and the system can never be left without an enabled administrator. Changes apply immediately because roles are read from the database on every request
+- **Activity:** the audit log with filters (action, date range) and user emails
+- **Statistics:** users by role, transactions by type, volume per currency (never added across currencies), and 30-day charts of sign-ups and transactions
+- **System:** the most recent warnings and errors with tokens, passwords and keys masked (no stack traces), plus API usage per endpoint (requests, 4xx/5xx, average and maximum time, rate-limit rejections)
+- **Market data:** see the active provider and whether a key is set (the key is never shown), pause or resume automatic refreshing, change the per-refresh cap, and run a refresh now
+- Every administrator action is written to the audit log
+
+### Creating the first administrator
+
+Self-registration only ever gives the Investor role, so name one address in `.env` (see `.env.example`):
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=you@example.com
+```
+
+Register with that address and verify its email (with `APP_MAIL_LOG_ONLY=true` the link is in `docker compose logs backend`). The account then becomes an administrator, but only once its email is verified, so nobody can claim the address by registering it first, and only while no enabled administrator exists. Afterwards you can clear the setting.
 
 **Stage 5A**
 - An installable app for phones, tablets and computers from one codebase (see `frontend/README.md`): bottom tabs on phones, sidebar on computers, install button, offline banner, safe-area support
@@ -75,7 +93,8 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Rate limiting uses the connection address. Behind a reverse proxy, configure the proxy and Spring's forwarded-header handling so real client addresses are used
 - Installing the app on a phone requires serving it over HTTPS (browsers only allow installation on secure origins; `localhost` works for the computer you develop on). See `frontend/README.md`
 - Sign-in lasts as long as the token (60 minutes by default); there are no refresh tokens yet
-- The administrator panel is Stage 5B. The `/api/admin/audit-logs` endpoint already exists
+- The system log, API usage and last-refresh figures live in memory on each server instance and reset on restart. With several instances each shows its own
+- The data provider and its API key are deployment settings (environment variables) and are deliberately not editable from the panel, so secrets never pass through the database or the browser
 - The frontend has been type-checked and its logic unit tested, but a full `npm install && npm run build` has not been run in the environment this was written in
 - Backend automated tests are unit tests. Integration tests against a real PostgreSQL and Redis arrive in Stage 6
 
@@ -109,6 +128,8 @@ portfolioiq/
 │       │   ├── notification/ in-app notification centre
 │       │   ├── watchlist/   watchlists
 │       │   ├── analytics/   series builder, time-weighted return, risk, diversification (framework-free) + API
+│       │   ├── admin/       user management, statistics, log capture, API usage, market controls, first-admin bootstrap
+│       │   ├── settings/    runtime settings store
 │       │   ├── config/      SecurityConfig, OpenApiConfig
 │       │   ├── security/    JwtService, JwtAuthenticationFilter, UserDetailsService
 │       │   ├── user/        User, Role, repositories
@@ -172,7 +193,12 @@ cd backend && mvn test
 | DELETE | `/api/portfolios/{id}/transactions/{txId}` | |
 | GET | `/api/assets?q=` | search |
 | POST | `/api/assets` | admin or analyst |
-| GET | `/api/admin/audit-logs` | admin only |
+| GET | `/api/admin/audit-logs` | admin only. Filters: `userId`, `action`, `from`, `to` |
+| GET | `/api/admin/audit-logs/actions` | admin only, for the filter list |
+| GET | `/api/admin/users` | admin only. `q`, `role`, `enabled`, paging |
+| PUT | `/api/admin/users/{id}/roles`, `/enabled` | admin only |
+| GET | `/api/admin/statistics`, `/logs`, `/api-usage` | admin only |
+| GET/PUT/POST | `/api/admin/market`, `/market/settings`, `/market/refresh` | admin only |
 
 | GET | `/api/market/status` | which data source is active (real or simulated) |
 | GET | `/api/market/quotes/{assetId}`, `/api/market/quotes?assetIds=1,2` | latest quotes (max 50 per batch) |

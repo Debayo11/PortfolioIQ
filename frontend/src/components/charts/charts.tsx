@@ -1,5 +1,5 @@
-import { Area, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart } from 'recharts';
-import type { AllocationSlice, IndexPoint, PricePoint, SeriesPoint } from '../../api/types';
+import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart } from 'recharts';
+import type { AllocationSlice, DayCount, IndexPoint, PricePoint, SeriesPoint } from '../../api/types';
 import { fmtCompact, fmtDate, fmtDateTime, fmtMoney, fmtNumber, fmtPercent } from '../../lib/format';
 
 export const PALETTE = ['#34d399', '#38bdf8', '#a78bfa', '#fbbf24', '#f472b6', '#fb923c', '#2dd4bf', '#818cf8', '#f87171', '#94a3b8'];
@@ -134,6 +134,23 @@ export function AllocationDonut({ slices, currency }: { slices: AllocationSlice[
         ))}
         {data.some((s) => s.valuedAtCost) && <li className="pt-1 text-xs text-ink-400">* shown at cost (no current price)</li>}
       </ul>
+    </div>
+  );
+}
+
+/** Counts per day as bars (administrator overview). */
+export function DayBars({ data, label, color = '#34d399' }: { data: DayCount[]; label: string; color?: string }) {
+  return (
+    <div className="h-48 w-full" role="img" aria-label={label}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+          <CartesianGrid stroke={GRID} vertical={false} />
+          <XAxis dataKey="date" tickFormatter={shortDate} minTickGap={32} {...AXIS} />
+          <YAxis allowDecimals={false} width={32} {...AXIS} />
+          <Tooltip content={<ChartTooltip format={(v) => fmtNumber(v, 0)} formatLabel={fmtDate} />} />
+          <Bar dataKey="count" name={label} fill={color} radius={[3, 3, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }

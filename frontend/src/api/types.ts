@@ -103,3 +103,32 @@ export interface Dashboard {
   bestPerformer: AssetPerformance | null; worstPerformer: AssetPerformance | null; recentTransactions: RecentTransaction[];
   movers: Mover[]; allocation: AllocationReport; performance: PerformanceReport;
 }
+
+// ---- administration ----
+export interface AdminUser {
+  id: number; email: string; firstName: string; lastName: string; enabled: boolean; emailVerified: boolean;
+  roles: Role[]; createdAt: string; portfolioCount: number;
+}
+export interface DayCount { date: string; count: number }
+export interface AdminStatistics {
+  users: { total: number; enabled: number; emailVerified: number; byRole: Array<{ role: string; count: number }> };
+  portfolios: number; assets: number; watchlists: number; activeAlerts: number;
+  transactions: { total: number; byType: Array<{ type: string; count: number }>; volume: Array<{ currency: string; type: string; count: number; totalAmount: number }> };
+  registrationsPerDay: DayCount[]; transactionsPerDay: DayCount[]; generatedAt: string;
+}
+export interface AuditEntry {
+  id: number; userId: number | null; userEmail: string | null; action: string; entityType: string | null;
+  entityId: string | null; details: string | null; ipAddress: string | null; createdAt: string;
+}
+export interface SystemLogEntry { time: string; level: string; logger: string; message: string; exception: string | null }
+export interface EndpointUsage { method: string; uri: string; requests: number; clientErrors: number; serverErrors: number; avgMillis: number; maxMillis: number }
+export interface ApiUsage {
+  since: string; uptimeSeconds: number; totalRequests: number; clientErrors: number; serverErrors: number;
+  rateLimitRejections: number; endpoints: EndpointUsage[]; note: string;
+}
+export interface RefreshResult { startedAt: string; durationMs: number; tracked: number; attempted: number; succeeded: number; failed: number; skipped: boolean; note: string | null }
+export interface MarketAdminView {
+  provider: string; simulated: boolean; apiKeyConfigured: boolean; refreshEnabled: boolean; maxRequestsPerRefresh: number;
+  refreshIntervalMs: number; cacheTtlSeconds: number; trackedAssets: number; storedPriceRows: number;
+  lastRefresh: RefreshResult | null; note: string;
+}

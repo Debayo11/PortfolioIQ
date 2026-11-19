@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, BellRing, BarChart3, Briefcase, Download, LayoutDashboard, LineChart, LogOut, Settings, Share, Star, WifiOff, X } from 'lucide-react';
+import { Bell, BellRing, BarChart3, Briefcase, Download, LayoutDashboard, LineChart, LogOut, Settings, Share, ShieldCheck, Star, WifiOff, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { api } from '../../api/endpoints';
 import { useAuth } from '../../auth/AuthContext';
@@ -9,7 +9,7 @@ import { useInstall } from '../../lib/install';
 import { cn } from '../../lib/cn';
 import { Button, SimulatedBadge } from '../ui';
 
-interface NavItem { to: string; label: string; icon: LucideIcon; end?: boolean; bottom?: boolean }
+interface NavItem { to: string; label: string; icon: LucideIcon; end?: boolean; bottom?: boolean; adminOnly?: boolean }
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, bottom: true },
@@ -19,6 +19,7 @@ const NAV: NavItem[] = [
   { to: '/watchlists', label: 'Watchlists', icon: Star },
   { to: '/alerts', label: 'Alerts', icon: BellRing },
   { to: '/notifications', label: 'Notifications', icon: Bell },
+  { to: '/admin', label: 'Administration', icon: ShieldCheck, adminOnly: true },
   { to: '/settings', label: 'Settings', icon: Settings, bottom: true },
 ];
 
@@ -102,14 +103,14 @@ function Header() {
 }
 
 export function AppShell() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const online = useOnline();
   return (
     <div className="min-h-full">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-ink-700/60 bg-ink-900/80 px-3 py-5 backdrop-blur-xl lg:flex">
         <Logo className="px-3" />
         <nav className="mt-8 flex flex-1 flex-col gap-1" aria-label="Main">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {NAV.filter((n) => !n.adminOnly || hasRole('ADMINISTRATOR')).map(({ to, label, icon: Icon, end }) => (
             <NavLink key={to} to={to} end={end}
               className={({ isActive }) => cn('flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
                 isActive ? 'bg-emerald-400/10 text-emerald-300' : 'text-ink-300 hover:bg-ink-800 hover:text-white')}>

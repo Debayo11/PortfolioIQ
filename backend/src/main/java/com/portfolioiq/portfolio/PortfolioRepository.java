@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,12 @@ public interface PortfolioRepository extends JpaRepository<Portfolio, Long> {
     Optional<Portfolio> findByIdAndUserId(Long id, Long userId);
 
     boolean existsByUserIdAndNameIgnoreCase(Long userId, String name);
+
+    long countByUserId(Long userId);
+
+    /** Rows of [user id, portfolio count]. */
+    @Query("select p.userId, count(p) from Portfolio p where p.userId in :ids group by p.userId")
+    List<Object[]> countByUserIds(@Param("ids") Collection<Long> ids);
 
     /** Row lock that serialises concurrent writes to the same portfolio (prevents double-selling the same shares). */
     @Lock(LockModeType.PESSIMISTIC_WRITE)

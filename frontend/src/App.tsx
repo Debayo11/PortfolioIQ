@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './auth/RequireAuth';
+import { RequireRole } from './auth/RequireRole';
 import { AppShell } from './components/layout/AppShell';
 import { Button, EmptyState } from './components/ui';
 import { AlertsPage, NotificationsPage } from './pages/AlertsNotificationsPages';
@@ -11,6 +12,12 @@ import { PortfolioDetailPage } from './pages/PortfolioDetailPage';
 import { PortfoliosPage } from './pages/PortfoliosPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { WatchlistsPage } from './pages/WatchlistsPage';
+import { AdminActivityPage } from './pages/admin/AdminActivityPage';
+import { AdminLayout } from './pages/admin/AdminLayout';
+import { AdminMarketPage } from './pages/admin/AdminMarketPage';
+import { AdminOverviewPage } from './pages/admin/AdminOverviewPage';
+import { AdminSystemPage } from './pages/admin/AdminSystemPage';
+import { AdminUsersPage } from './pages/admin/AdminUsersPage';
 
 function NotFound() {
   return <EmptyState title="Page not found" text="That page does not exist." action={<Link to="/"><Button>Go to dashboard</Button></Link>} />;
@@ -36,6 +43,15 @@ export function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route element={<RequireRole roles={['ADMINISTRATOR']} />}>
+            <Route path="admin" element={<AdminLayout />}>
+              <Route index element={<AdminOverviewPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="activity" element={<AdminActivityPage />} />
+              <Route path="system" element={<AdminSystemPage />} />
+              <Route path="market" element={<AdminMarketPage />} />
+            </Route>
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>
