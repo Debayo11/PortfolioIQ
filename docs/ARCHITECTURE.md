@@ -76,3 +76,15 @@ Every portfolio-scoped query will filter by the authenticated user's id in the r
 - **Operational data without new infrastructure.** API usage reads the metrics Spring Boot already records, and the log view is an in-memory ring buffer. Both are per instance and reset on restart; that limit is stated in the UI.
 - **Runtime settings in the database.** A small `app_settings` table holds the few things an administrator may change (refresh on/off, per-cycle cap). Defaults still come from configuration.
 - **Everything an administrator does is audited**, including manual refreshes and setting changes.
+
+## Stage 6 decisions
+
+- **Safe by default, convenient on request.** The base compose file publishes no ports. `docker-compose.override.yml` (loaded automatically) opens them for development; production uses explicit `-f` files, so a convenience port can never leak into a deployment.
+- **One front door.** In production only Caddy is exposed. It terminates TLS (automatic certificates, which is also what makes phone installation possible) and hands traffic to nginx, which serves the app and proxies the API.
+- **Client addresses survive three hops.** Caddy sets the client address; nginx trusts it only from private networks and overwrites rather than appends; Tomcat trusts it only from private-network proxies. Rate limiting and the audit log therefore see the real client and cannot be spoofed from outside.
+- **Integration tests use the real thing.** Real PostgreSQL and Redis through Testcontainers, a mocked mail sender to capture tokens, and the full HTTP stack through MockMvc. Concurrency is tested by firing simultaneous requests, which is what proves the row locking.
+- **Unit and integration tests are separate phases.** `mvn test` is fast and needs nothing; `mvn verify` adds the `*IT` tests through the Failsafe plugin. Without Docker they skip rather than fail.
+- **End-to-end tests read real email.** A Mailpit container catches what the backend sends, so verification and reset flows are tested through the actual mail path instead of by reaching into the database.
+- **A static schema check as a safety net.** Hibernate validates the schema at startup, so a mismatch is a hard failure. The check finds those mismatches in seconds without a database and runs in CI, proven against deliberate mistakes.
+- **Requests are traceable.** Every request gets an id (a caller's id is kept only if it is harmless), logged on every line and returned in `X-Request-Id`.
+- **Operational basics are scripted.** Backup (with a completeness check), restore (with confirmation), and an environment checker that refuses placeholder secrets.

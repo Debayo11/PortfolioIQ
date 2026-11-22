@@ -1,0 +1,12 @@
+# Local development conveniences. Docker Compose loads this file automatically.
+# Production uses explicit -f files instead, so none of these ports are ever published there.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"   # only this computer can reach the database
+  backend:
+    ports:
+      - "8080:8080"             # API and Swagger UI
+  frontend:
+    ports:
+      - "3000:80"               # the app

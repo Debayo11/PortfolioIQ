@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api/endpoints';
 import { useAuth } from '../auth/AuthContext';
 import { safePath } from '../lib/hooks';
+import { sessionStore } from '../lib/session';
 import { isEmail, validatePassword } from '../lib/validation';
 import { Button, ErrorNote, Notice, Spinner, TextField } from '../components/ui';
 
@@ -111,7 +112,7 @@ export function RegisterPage() {
 export function VerifyEmailPage() {
   const [params] = useSearchParams();
   const token = params.get('token');
-  const { status, refreshUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [state, setState] = useState<'idle' | 'working' | 'done' | 'failed'>(token ? 'working' : 'idle');
   const [error, setError] = useState<unknown>(null);
   const started = useRef(false);
@@ -120,9 +121,13 @@ export function VerifyEmailPage() {
     if (!token || started.current) return;
     started.current = true; // the token is single-use, so only ever send it once
     api.auth.verifyEmail(token)
-      .then(async () => { setState('done'); if (status === 'authenticated') await refreshUser(); })
+      .then(async () => {
+        setState('done');
+        // Roles can change at verification (the first administrator is promoted now), so reload them if signed in.
+        if (sessionStore.load()) await refreshUser().catch(() => undefined);
+      })
       .catch((err) => { setError(err); setState('failed'); });
-  }, [token, status, refreshUser]);
+  }, [token, refreshUser]);
 
   return (
     <AuthLayout title="Verify your email">

@@ -2,7 +2,7 @@
 
 Investment and portfolio management platform: Spring Boot + PostgreSQL backend, React/TypeScript frontend (in progress).
 
-> **Status: Stage 5B of 6.** Built incrementally, with each stage verified before the next. Nothing listed as "done" below is a stub.
+> **Status: all six stages complete.** See [Honest status](docs/TESTING.md#honest-status) for exactly what has and has not been run. Built incrementally, with each stage checked before the next. Nothing listed as "done" below is a stub.
 
 ## Roadmap
 
@@ -14,7 +14,7 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 | 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark and portfolio comparison | **Done** |
 | 5A | Installable app for phones and computers (React, TypeScript, Tailwind, Recharts): sign-in, dashboard, portfolios, transactions, transfers, market, watchlists, alerts, notifications, analytics | **Done** |
 | 5B | Administrator panel (users, roles, activity, statistics, system log, API usage, market data controls) with its backend endpoints | **Done** |
-| 6 | Integration tests (Testcontainers), end-to-end tests, production hardening, CI | Planned |
+| 6 | Integration tests (Testcontainers), end-to-end tests (Playwright), production hardening (HTTPS, hardened containers, backups), CI | **Done** |
 
 ## What works so far
 
@@ -42,6 +42,14 @@ Investment and portfolio management platform: Spring Boot + PostgreSQL backend, 
 - Holdings and portfolio summary now include market value, unrealized P&L, total return and today's change, with simulated/stale/unpriced flags
 - Asset transfers between your portfolios that carry cost basis and realize no profit or loss; undo is available while later sales do not depend on the shares
 - Rate limiting in Redis: 10 requests/min on sign-in, registration and password endpoints, 120 requests/min elsewhere, per client address
+
+**Stage 6 (quality and production)**
+- Integration tests on real PostgreSQL 16 and Redis 7 (Testcontainers), covering migrations, database constraints, security, concurrency, analytics, administration and rate limiting
+- Browser end-to-end tests (Playwright) on desktop and phone profiles, reading real emails from a mail catcher
+- A schema check that cross-verifies every entity against the migrations, with no database needed
+- CI on every change (schema check, unit and integration tests, type-check and build, end-to-end) and Dependabot
+- Production stack: automatic HTTPS (Caddy), no database or backend ports exposed, hardened containers, graceful shutdown, request ids in every log line, Swagger off, client addresses forwarded correctly for rate limiting
+- Backup and restore scripts and a pre-deployment environment checker. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 **Stage 5B (administrators)**
 - **Users:** search and filter, assign roles, enable or disable accounts. Guard rails: you cannot disable yourself or remove your own administrator role, and the system can never be left without an enabled administrator. Changes apply immediately because roles are read from the database on every request
@@ -90,13 +98,12 @@ Register with that address and verify its email (with `APP_MAIL_LOG_ONLY=true` t
 - Cash balance is not enforced: withdrawals and buys are not checked against deposits
 - Transactions cannot be edited, only deleted and re-entered. Transfers are undone as a pair
 - Existing JWTs stay valid until they expire after a password reset (default 60 minutes)
-- Rate limiting uses the connection address. Behind a reverse proxy, configure the proxy and Spring's forwarded-header handling so real client addresses are used
+- Rate limiting uses the client address. The provided Caddy and nginx setup forwards it correctly; if you put a different proxy in front, set `FORWARD_HEADERS_STRATEGY=native` and make sure it overwrites `X-Forwarded-For`
 - Installing the app on a phone requires serving it over HTTPS (browsers only allow installation on secure origins; `localhost` works for the computer you develop on). See `frontend/README.md`
 - Sign-in lasts as long as the token (60 minutes by default); there are no refresh tokens yet
 - The system log, API usage and last-refresh figures live in memory on each server instance and reset on restart. With several instances each shows its own
 - The data provider and its API key are deployment settings (environment variables) and are deliberately not editable from the panel, so secrets never pass through the database or the browser
-- The frontend has been type-checked and its logic unit tested, but a full `npm install && npm run build` has not been run in the environment this was written in
-- Backend automated tests are unit tests. Integration tests against a real PostgreSQL and Redis arrive in Stage 6
+- Everything is written and statically checked, but the full Maven, npm, Docker and browser test runs have not been executed in the environment this was written in. Run them once (see docs/TESTING.md) and expect a few small fixes
 
 ## Architecture
 
@@ -140,6 +147,13 @@ portfolioiq/
 │       │   └── db/migration/V1__init_schema.sql
 │       └── test/java/com/portfolioiq/  finance/ and transaction/ unit tests
 ├── frontend/          installable React app (see frontend/README.md)
+├── e2e/               Playwright end-to-end tests
+├── scripts/           schema check, backup, restore, environment check
+├── .github/           CI workflow and Dependabot
+├── docker-compose.yml / .override.yml / .prod.yml / .e2e.yml
+├── Caddyfile          HTTPS front door for production
+├── docs/              ARCHITECTURE.md, DEPLOYMENT.md, TESTING.md
+├── SECURITY.md
 ├── docs/ARCHITECTURE.md
 ├── docker-compose.yml
 ├── .env.example
@@ -170,10 +184,20 @@ export DB_URL=jdbc:postgresql://localhost:5432/portfolioiq DB_USER=portfolioiq D
 mvn spring-boot:run
 ```
 
-Run the tests:
+Tests (see [docs/TESTING.md](docs/TESTING.md)):
 
 ```bash
-cd backend && mvn test
+python3 scripts/check_schema.py       # entities match the migrations, no database needed
+cd backend && mvn test                # fast unit tests
+cd backend && mvn verify              # adds integration tests on real PostgreSQL and Redis (needs Docker)
+cd frontend && npm run typecheck && npm test && npm run build
+```
+
+Production (HTTPS, hardened containers, backups): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+```bash
+./scripts/check-env.sh .env prod
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 ## API (Stage 2)

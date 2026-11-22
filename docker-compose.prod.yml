@@ -1,0 +1,69 @@
+# Production overrides. Usage:
+#   cp .env.example .env   # fill in real values, then: ./scripts/check-env.sh .env prod
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Only Caddy publishes ports (80 and 443). It obtains and renews a TLS certificate automatically for $DOMAIN,
+# which also makes the app installable on phones. The database, cache, backend and nginx stay on the private network.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env, for example app.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+
+  postgres:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    restart: unless-stopped
+    # Redis only holds a cache and rate-limit counters, so nothing needs to survive a restart.
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 192m
+
+  backend:
+    restart: unless-stopped
+    environment:
+      SWAGGER_ENABLED: "false"
+      REQUIRE_VERIFIED_EMAIL: "true"
+      APP_MAIL_LOG_ONLY: "false"
+      FRONTEND_URL: https://${DOMAIN}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:?set SPRING_MAIL_HOST so verification and reset emails can be sent}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+
+  frontend:
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy_data:
+  caddy_config:

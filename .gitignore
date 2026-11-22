@@ -7,3 +7,8 @@ dist/
 .vscode/
 *.iml
 .DS_Store
+# test and ops artifacts
+playwright-report/
+test-results/
+backups/
+*.sql.gz

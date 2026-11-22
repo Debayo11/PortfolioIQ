@@ -1,0 +1,12 @@
+# TLS termination for production (see docker-compose.prod.yml). DOMAIN comes from .env.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	# nginx (the frontend container) serves the app and proxies /api to the backend.
+	reverse_proxy frontend:80
+}

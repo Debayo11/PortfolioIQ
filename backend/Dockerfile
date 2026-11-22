@@ -12,4 +12,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 COPY --from=build /app/target/*.jar app.jar
 USER appuser
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+# Size the heap from the container limit and restart cleanly instead of limping on after an out-of-memory error.
+ENTRYPOINT ["java","-XX:MaxRAMPercentage=75","-XX:+ExitOnOutOfMemoryError","-jar","/app/app.jar"]

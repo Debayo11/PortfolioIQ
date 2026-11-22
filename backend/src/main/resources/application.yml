@@ -1,6 +1,8 @@
 spring:
   application:
     name: portfolioiq
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/portfolioiq}
     username: ${DB_USER:portfolioiq}
@@ -56,6 +58,20 @@ management:
         enabled: true
 
 server:
+  shutdown: graceful                       # finish in-flight requests before stopping
+  # Set to "native" behind a reverse proxy so the real client address is used (rate limiting, audit log).
+  # Tomcat only trusts the forwarded header from private-network proxies, so it cannot be spoofed from the internet.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
   error:
     include-message: never
     include-stacktrace: never
+
+logging:
+  pattern:
+    level: "%5p [%X{requestId:-}]"           # every log line carries the request id
+
+springdoc:                                  # set SWAGGER_ENABLED=false in production
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
