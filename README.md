@@ -1,298 +1,277 @@
-# PortfolioIQ
+PortfolioIQ
 
-Investment and portfolio management platform: Spring Boot + PostgreSQL backend, React/TypeScript frontend (in progress).
+PortfolioIQ is an investment and portfolio management application for keeping track of investments, transactions and portfolio performance. It has a Spring Boot API backed by PostgreSQL and a React frontend that works on phones, tablets and desktop browsers.
 
-> **Status: all six stages complete.** See [Honest status](docs/TESTING.md#honest-status) for exactly what has and has not been run. Built incrementally, with each stage checked before the next. Nothing listed as "done" below is a stub.
+The application supports portfolio and transaction management, market quotes, watchlists, price alerts, notifications and performance analytics. It also includes role-based administration tools.
 
-## Roadmap
+Features
 
-| Stage | Scope | Status |
-|------:|-------|--------|
-| 1 | Architecture, PostgreSQL schema (Flyway), Docker/Compose, JWT auth + roles, financial calculation core + tests | **Done** |
-| 2 | Portfolios, assets, transactions API, ownership checks, audit logging, email verification and password recovery | **Done** |
-| 3 | Market data (real API if key set, otherwise labelled simulated data), watchlists, price alerts, notifications, Redis caching, rate limiting, asset transfers between portfolios | **Done** |
-| 4 | Analytics engine: portfolio value history, ROI, volatility, max drawdown, diversification, benchmark and portfolio comparison | **Done** |
-| 5A | Installable app for phones and computers (React, TypeScript, Tailwind, Recharts): sign-in, dashboard, portfolios, transactions, transfers, market, watchlists, alerts, notifications, analytics | **Done** |
-| 5B | Administrator panel (users, roles, activity, statistics, system log, API usage, market data controls) with its backend endpoints | **Done** |
-| 6 | Integration tests (Testcontainers), end-to-end tests (Playwright), production hardening (HTTPS, hardened containers, backups), CI | **Done** |
+Portfolios and transactions
 
-## What works so far
+- Create and manage multiple portfolios.
+- Add assets from a shared asset catalogue.
+- Record buys, sells, dividends, deposits, withdrawals and fees.
+- View holdings, invested cost, market value, realized and unrealized profit or loss.
+- Transfer holdings between portfolios while carrying their cost basis.
+- Filter and sort transaction history.
 
-**Stage 1**
-- BCrypt (cost 12) hashing, stateless JWT (HS256), roles `ADMINISTRATOR`, `INVESTOR`, `ANALYST`
-- Self-registration always yields `INVESTOR`; `/api/admin/**` requires `ADMINISTRATOR`
-- Consistent JSON errors, no internals leaked; Swagger UI at `/swagger-ui.html`; health at `/actuator/health`
-- `PositionCalculator`: average cost, realized/unrealized P&L, dividends, fees (`BigDecimal` only)
+Market information
 
-**Stage 2**
-- Portfolios: create, list, view, update, delete. Every query is scoped to the signed-in user, so another user's portfolio returns 404
-- Assets: shared catalogue with search; only `ADMINISTRATOR`/`ANALYST` can add assets
-- Transactions: BUY, SELL, DIVIDEND, DEPOSIT, WITHDRAWAL, FEE with validation, decimal-precision limits, paging, filtering (type, asset, date range) and sort whitelist
-- Selling more than held is rejected (HTTP 422), including back-dated sales. The portfolio row is locked during writes so concurrent requests cannot double-sell
-- Deleting a transaction is refused (HTTP 409) if later sales depend on it
-- Holdings and a cost-based portfolio summary (invested cost, realized P&L, dividends, fees, net deposits)
-- Audit log of registrations, logins, portfolio/asset/transaction changes, password resets; viewable by admins at `GET /api/admin/audit-logs`
-- Email verification and password recovery with one-time tokens (only SHA-256 hashes stored; 24 h / 1 h expiry)
+- Retrieve market quotes from Finnhub when an API key is configured.
+- Use clearly labelled simulated market data when no key is configured.
+- View quote history, daily price changes and available market statistics.
+- Create watchlists and price alerts.
+- Receive in-app notifications for alerts and account activity.
 
-**Stage 3**
-- Market data: real quotes from Finnhub when `MARKET_DATA_API_KEY` is set, otherwise deterministic data that is flagged `simulated: true` in every response. `GET /api/market/status` tells clients which one is active
-- Quotes (price, daily change and %, volume and market cap where the source provides them) and price history with the 24H / 7D / 30D / 3M / 6M / 1Y / ALL filters
-- Redis quote cache (60 s default) and a background refresh job guarded by a Redis lock; both fail open if Redis is down
-- Watchlists, price alerts (above, below, % move vs previous close) and an in-app notification centre. Notifications are also created for recorded transactions, dividends and transfers
-- Holdings and portfolio summary now include market value, unrealized P&L, total return and today's change, with simulated/stale/unpriced flags
-- Asset transfers between your portfolios that carry cost basis and realize no profit or loss; undo is available while later sales do not depend on the shares
-- Rate limiting in Redis: 10 requests/min on sign-in, registration and password endpoints, 120 requests/min elsewhere, per client address
+Analytics
 
-**Stage 6 (quality and production)**
-- Integration tests on real PostgreSQL 16 and Redis 7 (Testcontainers), covering migrations, database constraints, security, concurrency, analytics, administration and rate limiting
-- Browser end-to-end tests (Playwright) on desktop and phone profiles, reading real emails from a mail catcher
-- A schema check that cross-verifies every entity against the migrations, with no database needed
-- CI on every change (schema check, unit and integration tests, type-check and build, end-to-end) and Dependabot
-- Production stack: automatic HTTPS (Caddy), no database or backend ports exposed, hardened containers, graceful shutdown, request ids in every log line, Swagger off, client addresses forwarded correctly for rate limiting
-- Backup and restore scripts and a pre-deployment environment checker. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- View portfolio value and performance history.
+- Review returns, volatility and maximum drawdown.
+- See allocation by asset and asset type.
+- Compare portfolios and use an asset as a benchmark.
+- Review individual asset performance, including realized gains, unrealized gains and dividends.
 
-**Stage 5B (administrators)**
-- **Users:** search and filter, assign roles, enable or disable accounts. Guard rails: you cannot disable yourself or remove your own administrator role, and the system can never be left without an enabled administrator. Changes apply immediately because roles are read from the database on every request
-- **Activity:** the audit log with filters (action, date range) and user emails
-- **Statistics:** users by role, transactions by type, volume per currency (never added across currencies), and 30-day charts of sign-ups and transactions
-- **System:** the most recent warnings and errors with tokens, passwords and keys masked (no stack traces), plus API usage per endpoint (requests, 4xx/5xx, average and maximum time, rate-limit rejections)
-- **Market data:** see the active provider and whether a key is set (the key is never shown), pause or resume automatic refreshing, change the per-refresh cap, and run a refresh now
-- Every administrator action is written to the audit log
+Accounts and administration
 
-### Creating the first administrator
+- Register, sign in and verify an email address.
+- Recover an account using a password reset link.
+- Use Investor, Analyst and Administrator roles.
+- Manage users and roles from the administrator area.
+- Review audit activity, system information, API usage and market-data settings.
 
-Self-registration only ever gives the Investor role, so name one address in `.env` (see `.env.example`):
+Installable frontend
 
-```bash
-BOOTSTRAP_ADMIN_EMAIL=you@example.com
-```
+The frontend is a Progressive Web App (PWA). It can be installed from supported browsers and adapts its navigation and layout for smaller and larger screens. The app shell can load offline, but financial data is not served from an offline cache.
 
-Register with that address and verify its email (with `APP_MAIL_LOG_ONLY=true` the link is in `docker compose logs backend`). The account then becomes an administrator, but only once its email is verified, so nobody can claim the address by registering it first, and only while no enabled administrator exists. Afterwards you can clear the setting.
+Technology
 
-**Stage 5A**
-- An installable app for phones, tablets and computers from one codebase (see `frontend/README.md`): bottom tabs on phones, sidebar on computers, install button, offline banner, safe-area support
-- Screens: sign-in, registration, email verification, password reset, dashboard, portfolios (holdings, transactions, transfers), market and asset pages with price charts, watchlists, price alerts, notification centre, analytics (performance, risk, allocation, benchmark and portfolio comparison), settings
-- Every button, form, filter and chart is wired to the API; nothing is a placeholder. Simulated data is badged wherever it appears
+Area| Technologies
+Backend| Java 21, Spring Boot, Spring Security, JWT
+Database| PostgreSQL, Flyway
+Caching and rate limiting| Redis
+Frontend| React, TypeScript, Vite, Tailwind CSS
+Charts| Recharts
+Testing| JUnit, Testcontainers, Playwright
+Build and deployment| Maven, Docker Compose, Caddy, GitHub Actions
 
-**Stage 4**
-- Portfolio value over time, with cost basis alongside it, rebuilt from your transactions and historical prices (daily resolution)
-- Time-weighted return, so adding or withdrawing money is not mistaken for performance. Lifetime figures: realized and unrealized gains, dividends, total return and simple ROI
-- Risk: annualised volatility, maximum drawdown (with peak and trough dates), best and worst day, share of positive days
-- Allocation by asset and by asset type, with a diversification score (concentration index, effective number of holdings, plain-language level)
-- Benchmark comparison against any asset in the catalogue, and side-by-side comparison of 2 to 5 portfolios
-- Per-asset breakdown (realized vs unrealized vs dividends, return %), best and worst performer, movers, recent transactions and a combined dashboard endpoint
-- Several portfolios are combined only if they share a base currency; the others are listed as `excludedPortfolios`, never silently dropped
-- Every report states whether prices are simulated, flags days that used estimated prices, and carries a "past performance only, no projections" statement plus plain-language metric explanations
+How it is structured
 
-## Known limitations (deliberate, to be addressed in later stages)
+The frontend communicates with the backend through a REST API. The backend handles authentication, business rules and financial calculations, while PostgreSQL stores application data. Redis is used for quote caching and rate limiting.
 
-- Real market data comes from one provider (Finnhub). Its free tier allows about 60 calls a minute, so the refresh job caps each cycle at 50 assets. It does not return volume or market cap, so those fields are empty rather than invented
-- Real price history builds up from the prices this app stores after you start it (the provider's candle data is a paid feature). Simulated history is generated on demand
-- Alerts fire once, then deactivate. Recreate an alert to keep watching
-- Analytics cover holdings only. Cash is not tracked, so deposits, withdrawals and standalone fee transactions are not part of the performance series or simple ROI (the summary endpoint does subtract standalone fees)
-- Return maths assumes money moves at the end of each day, and one day's loss is capped at -100%. Volatility uses 252 trading days. There is no risk-free rate, so no Sharpe ratio
-- A benchmark is compared on price change only (its dividends are not included), and it must have price history covering the start of the period
-- Daily resolution only: the 24H range shows the last two daily points
-- No projections or forecasts are produced anywhere, by design
-- No currency conversion: record prices in the portfolio's base currency; transfers require matching base currencies
-- Cash balance is not enforced: withdrawals and buys are not checked against deposits
-- Transactions cannot be edited, only deleted and re-entered. Transfers are undone as a pair
-- Existing JWTs stay valid until they expire after a password reset (default 60 minutes)
-- Rate limiting uses the client address. The provided Caddy and nginx setup forwards it correctly; if you put a different proxy in front, set `FORWARD_HEADERS_STRATEGY=native` and make sure it overwrites `X-Forwarded-For`
-- Installing the app on a phone requires serving it over HTTPS (browsers only allow installation on secure origins; `localhost` works for the computer you develop on). See `frontend/README.md`
-- Sign-in lasts as long as the token (60 minutes by default); there are no refresh tokens yet
-- The system log, API usage and last-refresh figures live in memory on each server instance and reset on restart. With several instances each shows its own
-- The data provider and its API key are deployment settings (environment variables) and are deliberately not editable from the panel, so secrets never pass through the database or the browser
-- Everything is written and statically checked, but the full Maven, npm, Docker and browser test runs have not been executed in the environment this was written in. Run them once (see docs/TESTING.md) and expect a few small fixes
+React frontend
+      |
+      | REST API / JSON + JWT
+      v
+Spring Boot backend
+      |
+      +------ PostgreSQL (Flyway migrations)
+      |
+      +------ Redis (cache and rate limiting)
+      |
+      +------ Finnhub (when configured)
 
-## Architecture
+The backend is organised into controller, service and repository layers. Financial calculation logic is kept separate from the web framework so it can be tested independently.
 
-```
-React SPA (Stage 5)  --REST/JSON + Bearer JWT-->  Spring Boot API  -->  PostgreSQL (Flyway)
-                                                        |
-                                                        +--> Redis (cache, Stage 3)
-```
+Project structure
 
-Backend layers: `controller -> service -> repository -> entity`, with DTOs at the edge and `finance` as a framework-free calculation core so money logic is unit-testable in isolation.
-
-## Project structure
-
-```
 portfolioiq/
-├── backend/
-│   ├── pom.xml
-│   ├── Dockerfile
-│   └── src/
-│       ├── main/java/com/portfolioiq/
-│       │   ├── PortfolioIqApplication.java
-│       │   ├── auth/        controller, service, tokens, email
-│       │   ├── audit/       audit log entity, service, admin endpoint
-│       │   ├── asset/       asset catalogue
-│       │   ├── portfolio/   portfolios, holdings, summary
-│       │   ├── transaction/ transactions, dividends, transfers
-│       │   ├── market/      providers (simulated, Finnhub), quote cache, refresh job, API
-│       │   ├── alert/       price alerts and rules
-│       │   ├── notification/ in-app notification centre
-│       │   ├── watchlist/   watchlists
-│       │   ├── analytics/   series builder, time-weighted return, risk, diversification (framework-free) + API
-│       │   ├── admin/       user management, statistics, log capture, API usage, market controls, first-admin bootstrap
-│       │   ├── settings/    runtime settings store
-│       │   ├── config/      SecurityConfig, OpenApiConfig
-│       │   ├── security/    JwtService, JwtAuthenticationFilter, UserDetailsService
-│       │   ├── user/        User, Role, repositories
-│       │   ├── common/      ApiError, ApiException, GlobalExceptionHandler
-│       │   └── finance/     PositionCalculator, TransactionRules (framework-free)
-│       ├── main/resources/
-│       │   ├── application.yml
-│       │   └── db/migration/V1__init_schema.sql
-│       └── test/java/com/portfolioiq/  finance/ and transaction/ unit tests
-├── frontend/          installable React app (see frontend/README.md)
-├── e2e/               Playwright end-to-end tests
-├── scripts/           schema check, backup, restore, environment check
-├── .github/           CI workflow and Dependabot
-├── docker-compose.yml / .override.yml / .prod.yml / .e2e.yml
-├── Caddyfile          HTTPS front door for production
-├── docs/              ARCHITECTURE.md, DEPLOYMENT.md, TESTING.md
-├── SECURITY.md
-├── docs/ARCHITECTURE.md
+├── backend/       Spring Boot application and tests
+├── frontend/      React and TypeScript PWA
+├── e2e/           Playwright end-to-end tests
+├── scripts/       Schema, backup, restore and environment scripts
+├── docs/          Architecture, testing and deployment guides
+├── .github/       CI workflow and Dependabot configuration
 ├── docker-compose.yml
 ├── .env.example
-└── README.md
-```
+├── Caddyfile
+└── SECURITY.md
 
-## Run it
+Getting started
 
-With Docker Compose the whole stack (database, cache, backend and the web app) starts together and the app is at http://localhost:3000.
+Requirements
 
-Prerequisites: Docker + Docker Compose (or Java 21, Maven 3.9+, PostgreSQL 16, Redis 7 locally).
+To run the full application with Docker, you need:
 
-```bash
-cp .env.example .env          # then edit: set a strong POSTGRES_PASSWORD and JWT_SECRET
-docker compose up --build
-```
+- Docker
+- Docker Compose
 
-- App: http://localhost:3000
-- API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- Health: http://localhost:8080/actuator/health
+For a local setup without Docker, install:
 
-Without Docker:
+- Java 21
+- Maven 3.9 or later
+- PostgreSQL 16
+- Redis 7
+- Node.js and npm (for the frontend)
 
-```bash
+Run with Docker Compose
+
+1. Clone the repository and move into the project directory.
+
+2. Copy the example environment file:
+   
+   cp .env.example .env
+
+3. Edit ".env". At minimum, set a strong "POSTGRES_PASSWORD" and a secure "JWT_SECRET".
+
+4. Build and start the services:
+   
+   docker compose up --build
+
+When the services are running, the default local addresses are:
+
+Service| URL
+Frontend| http://localhost:3000
+Backend API| http://localhost:8080
+Swagger UI| http://localhost:8080/swagger-ui.html
+Health check| http://localhost:8080/actuator/health
+
+Run the backend locally
+
+Start PostgreSQL and Redis, create the "portfolioiq" database and configure the connection details. From the project root:
+
 cd backend
-export DB_URL=jdbc:postgresql://localhost:5432/portfolioiq DB_USER=portfolioiq DB_PASSWORD=... JWT_SECRET=...
+
+export DB_URL=jdbc:postgresql://localhost:5432/portfolioiq
+export DB_USER=portfolioiq
+export DB_PASSWORD=your-database-password
+export JWT_SECRET=your-long-secret-value
+
 mvn spring-boot:run
-```
 
-Tests (see [docs/TESTING.md](docs/TESTING.md)):
+Flyway applies the database migrations when the application starts.
 
-```bash
-python3 scripts/check_schema.py       # entities match the migrations, no database needed
-cd backend && mvn test                # fast unit tests
-cd backend && mvn verify              # adds integration tests on real PostgreSQL and Redis (needs Docker)
-cd frontend && npm run typecheck && npm test && npm run build
-```
+Run the frontend locally
 
-Production (HTTPS, hardened containers, backups): see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+In another terminal:
 
-```bash
-./scripts/check-env.sh .env prod
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-```
+cd frontend
+npm install
+npm run dev
 
-## API (Stage 2)
+The Vite development server runs at http://localhost:5173 and proxies "/api" requests to the backend on port 8080 by default.
 
-| Method | Path | Notes |
-|---|---|---|
-| POST | `/api/auth/register`, `/login` | public |
-| GET | `/api/auth/me` | |
-| POST | `/api/auth/verify-email` | body `{"token":"..."}` |
-| POST | `/api/auth/resend-verification` | signed in |
-| POST | `/api/auth/forgot-password` | always 202, never reveals whether the account exists |
-| POST | `/api/auth/reset-password` | body `{"token","newPassword"}` |
-| GET/POST | `/api/portfolios` | list / create |
-| GET/PUT/DELETE | `/api/portfolios/{id}` | |
-| GET | `/api/portfolios/{id}/summary`, `/holdings` | |
-| GET/POST | `/api/portfolios/{id}/transactions` | filters: `type`, `assetId`, `from`, `to`, `page`, `size`, `sort` |
-| DELETE | `/api/portfolios/{id}/transactions/{txId}` | |
-| GET | `/api/assets?q=` | search |
-| POST | `/api/assets` | admin or analyst |
-| GET | `/api/admin/audit-logs` | admin only. Filters: `userId`, `action`, `from`, `to` |
-| GET | `/api/admin/audit-logs/actions` | admin only, for the filter list |
-| GET | `/api/admin/users` | admin only. `q`, `role`, `enabled`, paging |
-| PUT | `/api/admin/users/{id}/roles`, `/enabled` | admin only |
-| GET | `/api/admin/statistics`, `/logs`, `/api-usage` | admin only |
-| GET/PUT/POST | `/api/admin/market`, `/market/settings`, `/market/refresh` | admin only |
+More frontend-specific information is available in "frontend/README.md" (frontend/README.md).
 
-| GET | `/api/market/status` | which data source is active (real or simulated) |
-| GET | `/api/market/quotes/{assetId}`, `/api/market/quotes?assetIds=1,2` | latest quotes (max 50 per batch) |
-| GET | `/api/market/history/{assetId}?range=` | `24H`, `7D`, `30D`, `3M`, `6M`, `1Y`, `ALL` |
-| GET/POST | `/api/watchlists` | list / create |
-| GET/PUT/DELETE | `/api/watchlists/{id}` | |
-| POST/DELETE | `/api/watchlists/{id}/items`, `/items/{assetId}` | add / remove an asset |
-| GET/POST | `/api/alerts` | list / create (`ABOVE`, `BELOW`, `PERCENT_MOVE`) |
-| DELETE | `/api/alerts/{id}` | |
-| GET | `/api/notifications?unreadOnly=`, `/api/notifications/unread-count` | |
-| POST | `/api/notifications/{id}/read`, `/api/notifications/read-all` | |
-| POST | `/api/transfers` | move shares between your portfolios |
-| DELETE | `/api/transfers/{transferId}` | undo a transfer |
+Creating the first administrator
 
-| GET | `/api/analytics/dashboard` | totals, best/worst performer, recent transactions, movers, allocation, performance |
-| GET | `/api/analytics/performance` | value history, returns, risk, optional `benchmarkAssetId` |
-| GET | `/api/analytics/allocation` | by asset and by type, with diversification |
-| GET | `/api/analytics/assets` | per-asset realized, unrealized, dividends, return % |
-| GET | `/api/analytics/compare?portfolioIds=1,2` | 2 to 5 portfolios, rebased to 100 |
+Public registration creates an account with the "INVESTOR" role. To bootstrap the first administrator:
 
-Analytics endpoints accept `range` (`24H`, `7D`, `30D`, `3M`, `6M`, `1Y`, `ALL`). Omit `portfolioId` to combine all portfolios in one base currency (choose it with `currency`).
+1. Set "BOOTSTRAP_ADMIN_EMAIL" in ".env" to the email address you intend to use.
+2. Register with that email address.
+3. Verify the email address.
+4. The account is promoted to Administrator if there is no other enabled administrator.
 
-Full request/response schemas are in Swagger UI.
+The bootstrap setting only works while the system has no enabled administrator. Remove the setting after the account has been created.
 
-## Configuration
+For local development, "APP_MAIL_LOG_ONLY=true" writes verification links to the backend logs instead of sending email. Do not use this setting in production.
 
-Set in `.env` (see `.env.example`). Secrets are never committed.
+Market data
 
-| Variable | Purpose | Default |
-|---|---|---|
-| `MARKET_DATA_API_KEY` | Finnhub key; empty means simulated data | empty |
-| `MARKET_REFRESH_INTERVAL_MS` | how often tracked assets are refreshed | 300000 |
-| `MARKET_MAX_REQUESTS_PER_REFRESH` | cap per cycle (respects free-tier limits) | 50 |
-| `MARKET_CACHE_TTL_SECONDS` | Redis quote cache lifetime | 60 |
-| `RATE_LIMIT_ENABLED`, `RATE_LIMIT_AUTH_PER_MINUTE`, `RATE_LIMIT_API_PER_MINUTE` | rate limiting | true, 10, 120 |
+PortfolioIQ uses Finnhub for live quotes when "MARKET_DATA_API_KEY" is configured. If the key is not set, the application uses deterministic simulated data for development.
 
-## Try the API
+The API identifies simulated data with a "simulated" flag, and the interface labels it accordingly. Live and simulated prices are not silently mixed. If the live provider is unavailable, the application can return the last stored quote with a stale-data flag.
 
-```bash
-curl -X POST localhost:8080/api/auth/register -H 'Content-Type: application/json' \
-  -d '{"email":"jay@example.com","password":"a-long-password-123","firstName":"Jay","lastName":"Doe"}'
+The provider has request limits, so the refresh process is capped. Some market fields may not be available from the provider and are left empty rather than filled with made-up values.
 
-curl localhost:8080/api/auth/me -H "Authorization: Bearer <token>"
+Financial calculations
 
-# create a portfolio, then record a deposit
-curl -X POST localhost:8080/api/portfolios -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
-  -d '{"name":"Long term","baseCurrency":"USD"}'
-curl -X POST localhost:8080/api/portfolios/1/transactions -H "Authorization: Bearer <token>" -H 'Content-Type: application/json' \
-  -d '{"type":"DEPOSIT","amount":5000,"executedAt":"2026-01-02T10:00:00Z"}'
-```
+Financial amounts and quantities use Java "BigDecimal" and PostgreSQL "NUMERIC", rather than floating-point values.
 
-With `APP_MAIL_LOG_ONLY=true` the verification link is written to the backend log, so you can copy the token into `POST /api/auth/verify-email`. Never enable this in production.
+The application uses the average-cost method:
 
+- A buy adds the purchase value and fee to the holding's cost.
+- A sale removes cost at the current average cost and calculates realized profit or loss.
+- Dividends are recorded separately and do not change the holding's cost basis.
+- Selling more shares than are held is rejected.
 
-## Financial calculation rules
+The calculation rules and precision are documented in the backend code and covered by tests.
 
-- Money and quantities are `BigDecimal` / `NUMERIC`, never floating point.
-- Average cost method. BUY adds `qty x price + fee` to cost. SELL removes cost at the current average; realized P&L = `qty x price - fee - cost removed`.
-- Dividends = `shares x per-share amount - fee`, and do not change cost basis.
-- Internal scale 8, reported scale 4, `HALF_UP`.
-- Overselling raises `InsufficientHoldingsException` (HTTP 422).
+API
 
-## Market data policy
+The backend exposes a REST API. Swagger UI is available at:
 
-Real prices are used only when `MARKET_DATA_API_KEY` is configured (Finnhub). Otherwise the app serves deterministic development data that is flagged `simulated = true` in the API and stored with `source = SIMULATED`, and alert notifications on it say "(simulated price)". Simulated and real prices are never mixed silently. If the live source fails, the last stored price is returned with `stale = true`.
+http://localhost:8080/swagger-ui.html
 
-## Security notes
+Some of the main endpoint groups are:
 
-- Secrets come from environment variables only; `.env` is git-ignored.
-- `JWT_SECRET` shorter than 32 characters stops the app at startup.
-- Login failures return one generic message to prevent account enumeration.
-- Stateless API, so CSRF protection is disabled by design (no cookies are used).
-- Hibernate `ddl-auto=validate`: schema changes go through Flyway migrations only.
+Area| Example endpoints| Purpose
+Authentication| "/api/auth/**"| Registration, login, verification and password recovery
+Portfolios| "/api/portfolios/**"| Portfolio details, holdings and transactions
+Assets| "/api/assets"| Search the asset catalogue
+Market| "/api/market/**"| Market status, quotes and price history
+Watchlists| "/api/watchlists/**"| Create and manage watchlists
+Alerts| "/api/alerts/**"| Create and manage price alerts
+Notifications| "/api/notifications/**"| View and mark notifications as read
+Transfers| "/api/transfers/**"| Move holdings between portfolios
+Analytics| "/api/analytics/**"| Performance, allocation and portfolio comparisons
+Administration| "/api/admin/**"| User management, audit logs and system information
+
+Protected endpoints require a valid bearer token. Administrator endpoints require the Administrator role. Full request and response schemas are available in Swagger UI.
+
+Configuration
+
+Application settings are supplied through environment variables. The full list and example values are in ".env.example".
+
+A few settings you may want to configure:
+
+Variable| Purpose
+"POSTGRES_PASSWORD"| PostgreSQL password
+"JWT_SECRET"| Secret used to sign JWTs; use a long, random value
+"MARKET_DATA_API_KEY"| Finnhub API key; leave empty to use simulated data
+"MARKET_REFRESH_INTERVAL_MS"| Interval between market-data refreshes
+"MARKET_MAX_REQUESTS_PER_REFRESH"| Maximum assets requested per refresh
+"MARKET_CACHE_TTL_SECONDS"| Lifetime of cached market quotes
+"RATE_LIMIT_ENABLED"| Enables or disables API rate limiting
+
+Do not commit ".env" or put production secrets in source control.
+
+Tests
+
+The repository includes backend unit and integration tests, frontend checks and browser-based end-to-end tests.
+
+# Check entity definitions against database migrations
+python3 scripts/check_schema.py
+
+# Backend unit tests
+cd backend && mvn test
+
+# Backend integration tests (requires Docker)
+cd backend && mvn verify
+
+# Frontend checks
+cd frontend
+npm run typecheck
+npm test
+npm run build
+
+The integration tests use Testcontainers to run PostgreSQL and Redis. Playwright tests cover browser workflows on desktop and phone-sized profiles.
+
+See "docs/TESTING.md" (docs/TESTING.md) for test instructions and the current testing status.
+
+Known limitations
+
+A few current limitations are worth knowing about:
+
+- Finnhub is the only live market-data provider currently configured.
+- Live historical price data builds from prices stored by the application after it starts; provider candle history is not used.
+- Price alerts trigger once and then deactivate.
+- Analytics focus on investment holdings. Cash balances are not tracked as holdings.
+- There is no currency conversion. Portfolios can only be combined when they use the same base currency.
+- The application does not enforce a cash balance when recording buys or withdrawals.
+- Transactions cannot be edited. A transaction can be deleted and entered again, subject to dependency checks.
+- Analytics use daily data points and do not provide forecasts or projections.
+- There are no refresh tokens yet. Users sign in again when their JWT expires.
+- Some administrator system and API usage figures are held in memory and reset when the server restarts.
+
+Deployment
+
+Production configuration includes HTTPS through Caddy, hardened Docker services, backup and restore scripts, and an environment checker.
+
+Before deploying, review:
+
+- "Deployment guide" (docs/DEPLOYMENT.md)
+- "Architecture notes" (docs/ARCHITECTURE.md)
+- "Testing notes" (docs/TESTING.md)
+- "Security policy" (SECURITY.md)
+
+Use production secrets and configure email delivery and HTTPS before making the application publicly available.
